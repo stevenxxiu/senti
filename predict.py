@@ -12,7 +12,8 @@ liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.t
 
 
 def normalize_text(text):
-    text = re.sub(r'([\.\",()!?;:])', r' \1 ', text.lower())
+    text = text.lower()
+    text = re.sub(r'([\.\",()!?;:])', r' \1 ', text)
     text = re.sub(r'\s+', ' ', text)
     return text
 
