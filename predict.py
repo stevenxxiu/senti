@@ -12,8 +12,7 @@ liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.t
 
 
 def normalize_text(text):
-    # XXX use word_tokenize?
-    text = re.sub(r'([\.",()!?;:])', r' \1 ', text.lower())
+    text = re.sub(r'([\.\",()!?;:])', r' \1 ', text.lower())
     text = re.sub(r'\s+', ' ', text)
     return text
 
@@ -77,10 +76,9 @@ def test():
 
 
 def main():
-    # word2vec()
-    # prepare_liblinear()
-    # train_dev()
-    test()
+    word2vec()
+    prepare_liblinear()
+    train_dev()
 
 if __name__ == '__main__':
     main()
