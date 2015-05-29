@@ -5,7 +5,7 @@ import json
 import os
 import re
 
-data_dir = 'data/imdb'
+data_dir = 'data/twitter'
 data_files = [os.path.join(data_dir, path) for path in ('train.json', 'dev.json')]
 liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.txt')]
 
@@ -37,7 +37,8 @@ def prepare_liblinear():
     with open('{}/sentence_vectors.txt'.format(data_dir)) as vect_sr:
         for data_name, liblinear_name in zip(data_files, liblinear_files):
             with open(data_name) as data_sr, open(liblinear_name, 'w') as out_sr:
-                for vect_line, data_line in zip(vect_sr, data_sr):
+                # data_sr first to not over-consume data_sr
+                for data_line, vect_line in zip(data_sr, vect_sr):
                     classif = next(iter(json.loads(data_line).values()))
                     if classif is None:
                         continue
