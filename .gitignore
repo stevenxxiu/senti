@@ -1,4 +1,5 @@
 
+/.idea
 /data
 /liblinear
 /word2vec
