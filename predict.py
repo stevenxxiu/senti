@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
+import csv
 import itertools
 import json
 import os
 import re
-import numpy as np
 
 data_dir = 'data/pitchwise'
-data_files = [os.path.join(data_dir, path) for path in ('train.json', 'dev.json')]
-liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.txt')]
+data_files = [os.path.join(data_dir, path) for path in ('train.json', 'dev.json', 'test.json')]
+liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.txt', 'test.txt')]
 
 
 def normalize_text(text):
@@ -22,7 +22,8 @@ def word2vec():
     # throw training & test data into word2vec and output the sentence vectors
     with open('{}/alldata.txt'.format(data_dir), 'w') as out_sr:
         for i, line in enumerate(itertools.chain(*(open(name) for name in data_files))):
-            text = normalize_text(next(iter(json.loads(line).keys())))
+            obj = json.loads(line)
+            text = normalize_text(next(iter(obj.keys()))) if len(obj) == 1 else obj['text']
             out_sr.write('_*{} {}\n'.format(i, text))
     os.system(r'''
         time word2vec/word2vec -train {0}/alldata.txt -output {0}/vectors.txt -cbow 0 -size 100 -window 10
@@ -42,9 +43,10 @@ def prepare_liblinear():
                 # data_sr first to not over-consume data_sr
                 for data_line, vect_line in zip(data_sr, vect_sr):
                     classif = next(iter(json.loads(data_line).values()))
-                    if classif is None:
+                    classif = classif//5 if classif is not None else -1
+                    if classif == -1 and os.path.split(data_name)[1] == 'train.json':
+                        # logistic regression doesn't use unsupervised training data
                         continue
-                    classif //= 5
                     out_data = ' '.join('{}:{}'.format(i + 1, v) for i, v in enumerate(vect_line.strip().split()[1:]))
                     out_sr.write('{} {}\n'.format(classif, out_data))
 
@@ -55,31 +57,23 @@ def train_dev():
 
 
 def test():
-    if not os.path.exists('{0}/test.json'.format(data_dir)):
-        return
-    # load word2vec vectors
-    vects = {}
-    with open('{}/vectors.txt'.format(data_dir), encoding='ISO-8859-1') as in_sr:
-        for line in in_sr:
-            if not line.startswith('_*'):
-                tokens = line.strip().split()
-                vects[tokens[0]] = np.array(list(map(float, tokens[1:])))
-    # convert test data to vectors, skipping unknown words
-    with open('{0}/test.json'.format(data_dir), 'r') as in_sr, open('{0}/test.txt'.format(data_dir), 'w') as out_sr:
-        for line in in_sr:
-            sentence = normalize_text(next(iter(json.loads(line).keys())))
-            sentence = normalize_text("Gas by my house hit $3.39!!!! I'm going to Chapel Hill on Sat. :)")
-            sentence_vect = np.zeros(len(next(iter(vects.values()))))
-            for token in sentence.split():
-                if token in vects:
-                    sentence_vect += vects[token]
-            out_sr.write('-1 {}\n'.format(' '.join('{}:{:.6f}'.format(i + 1, v) for i, v in enumerate(sentence_vect))))
+    os.system('liblinear/predict -b 1 {0}/test.txt {0}/train.logreg {0}/test.logreg > /dev/null'.format(data_dir))
+    # output csv file
+    with open('{}/test.json'.format(data_dir)) as json_sr, \
+            open('{}/test.logreg'.format(data_dir)) as logreg_sr, \
+            open('{}/test.csv'.format(data_dir), 'w') as out_sr:
+        out_csv = csv.writer(out_sr)
+        out_csv.writerow(['docid', 'sentid', 'class', 'prob_pos', 'prob_nt', 'prob_neg', 'sentence'])
+        for json_line, logreg_line in zip(json_sr, itertools.islice(logreg_sr, 1, None)):
+            obj = json.loads(json_line)
+            out_csv.writerow([obj['docid'], obj['sentid']] + logreg_line.split() + [obj['text']])
 
 
 def main():
     word2vec()
     prepare_liblinear()
     train_dev()
+    test()
 
 if __name__ == '__main__':
     main()

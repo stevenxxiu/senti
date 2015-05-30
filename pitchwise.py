@@ -15,7 +15,7 @@ def parse(path):
         for node in root:
             tag = node.tag.lower()
             if tag == 'docno':
-                obj['docno'] = int(node.text.strip())
+                obj['docid'] = int(node.text.strip())
             elif tag == 'body':
                 obj['text'] = node.text.strip()
                 res.append(obj)
@@ -26,14 +26,13 @@ def parse(path):
 def to_json(objs, path):
     with open(path, 'w') as sr:
         for obj in objs:
-            for sent in sent_tokenize(obj['text']):
-                json.dump({sent: None}, sr)
+            for i, sent in enumerate(sent_tokenize(obj['text'])):
+                json.dump({'docid': obj['docid'], 'sentid': i, 'text': sent}, sr)
                 sr.write('\n')
 
 
 def main():
     to_json(parse('data/pitchwise/test.xml'), 'data/pitchwise/test.json')
-
 
 if __name__ == '__main__':
     main()
