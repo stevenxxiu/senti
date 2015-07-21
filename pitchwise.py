@@ -1,38 +1,23 @@
 #!/usr/bin/env python
 
-import itertools
 import json
-
-import lxml.etree
-from nltk.tokenize import sent_tokenize
+import re
 
 
-def parse(path):
-    res = []
-    with open(path, 'r', encoding='utf-8') as sr:
-        root = lxml.etree.fromstringlist(itertools.chain('<root>', sr, '</root>'))
-        obj = {}
-        for node in root:
-            tag = node.tag.lower()
-            if tag == 'docno':
-                obj['docid'] = int(node.text.strip())
-            elif tag == 'body':
-                obj['text'] = node.text.strip()
-                res.append(obj)
-                obj = {}
-    return res
-
-
-def to_json(objs, path):
-    with open(path, 'w') as sr:
-        for obj in objs:
-            for i, sent in enumerate(sent_tokenize(obj['text'])):
-                json.dump({'docid': obj['docid'], 'sentid': i, 'text': sent}, sr)
-                sr.write('\n')
+def to_json(in_path, out_path):
+    with open(in_path, 'r') as in_sr, open(out_path, 'w') as out_sr:
+        for line in in_sr:
+            doc_id, line = re.match(r'(\d+) (.+)$', line).groups()
+            doc_id = int(doc_id)
+            for i, sent in enumerate(line.split('|||')):
+                if not sent:
+                    continue
+                json.dump({'docid': doc_id, 'sentid': i, 'text': sent.strip()}, out_sr)
+                out_sr.write('\n')
 
 
 def main():
-    to_json(parse('data/pitchwise/test.xml'), 'data/pitchwise/test.json')
+    to_json('data/pitchwise/test.dat', 'data/pitchwise/test.json')
 
 if __name__ == '__main__':
     main()
