@@ -63,7 +63,7 @@ def test():
             open('{}/test.logreg'.format(data_dir)) as logreg_sr, \
             open('{}/test.csv'.format(data_dir), 'w') as out_sr:
         out_csv = csv.writer(out_sr)
-        out_csv.writerow(['docid', 'sentid', 'class', 'prob_pos', 'prob_nt', 'prob_neg', 'sentence'])
+        out_csv.writerow(['docid', 'sentid', 'class', 'prob_pos', 'prob_neg', 'prob_nt', 'sentence'])
         for json_line, logreg_line in zip(json_sr, itertools.islice(logreg_sr, 1, None)):
             obj = json.loads(json_line)
             out_csv.writerow([obj['docid'], obj['sentid']] + logreg_line.split() + [obj['text']])
