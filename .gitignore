@@ -2,4 +2,5 @@
 /.idea
 /data
 /liblinear
+/scoring
 /word2vec

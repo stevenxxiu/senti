@@ -5,10 +5,20 @@ import itertools
 import json
 import os
 import re
+import numpy as np
+from contextlib import contextmanager
 
-data_dir = 'data/pitchwise'
+data_dir = 'data/twitter'
 data_files = [os.path.join(data_dir, path) for path in ('train.json', 'dev.json', 'test.json')]
 liblinear_files = [os.path.join(data_dir, path) for path in ('train.txt', 'dev.txt', 'test.txt')]
+
+
+@contextmanager
+def temp_chdir(path):
+    prev_path = os.getcwd()
+    os.chdir(path)
+    yield prev_path
+    os.chdir(prev_path)
 
 
 def normalize_text(text):
@@ -18,17 +28,50 @@ def normalize_text(text):
     return text
 
 
+def iterate_text(sr):
+    for line in sr:
+        doc = json.loads(line)
+        doc_id = doc['id']
+        if 'sentences' in doc:
+            for sent in doc['sentences']:
+                yield ((doc_id, sent['id']), (doc, sent))
+        else:
+            yield ((doc_id,), (doc,))
+
+
+def iterate_norm_text(sr):
+    for id_, path in iterate_text(sr):
+        obj = path[-1]
+        if not obj.get('norm', False):
+            obj['text'] = normalize_text(obj['text'])
+        yield (id_, path)
+
+
 def word2vec():
     # throw training & test data into word2vec and output the sentence vectors
     with open('{}/alldata.txt'.format(data_dir), 'w') as out_sr:
-        for i, line in enumerate(itertools.chain(*(open(name) for name in data_files))):
-            obj = json.loads(line)
-            text = normalize_text(next(iter(obj.keys()))) if len(obj) == 1 else obj['text']
-            out_sr.write('_*{} {}\n'.format(i, text))
+        for data_name in data_files:
+            with open(data_name, 'r') as in_sr:
+                for id_, path in iterate_norm_text(in_sr):
+                    out_sr.write('_*{} {}\n'.format('_'.join(id_), path[-1]['text']))
     os.system(r'''
         time word2vec/word2vec -train {0}/alldata.txt -output {0}/vectors.txt -cbow 0 -size 100 -window 10
         -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
     '''.replace('\n', '').format(data_dir))
+
+
+def word2vec_words():
+    word_vecs = {}
+    with open('{}/vectors.txt'.format(data_dir), encoding='ISO-8859-1') as in_sr:
+        lines = iter(in_sr)
+        dims = tuple(map(int, re.match(r'(\d+) (\d+)', next(lines)).groups()))
+        for line in lines:
+            word, vec = re.match(r'(\S+) (.+)', line).groups()
+            word_vecs[word] = np.array(list(map(float, vec.strip().split())))
+    return dims, word_vecs
+
+
+def word2vec_write_docs():
     with open('{}/vectors.txt'.format(data_dir), encoding='ISO-8859-1') as in_sr, \
             open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
         for line in in_sr:
@@ -36,44 +79,92 @@ def word2vec():
                 out_sr.write(line)
 
 
+def word2vec_write_average():
+    dims, word_vecs = word2vec_words()
+    with open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
+        for data_name in data_files:
+            with open(data_name, 'r') as in_sr:
+                for id_, path in iterate_norm_text(in_sr):
+                    words = path[-1]['text'].split()
+                    vec = np.vstack(word_vecs[word] for word in words if word in word_vecs).mean(0)
+                    out_sr.write('_*{} {}\n'.format('_'.join(id_), ' '.join(map(str, vec))))
+
+
+def word2vec_write_max():
+    # component-wise max
+    dims, word_vecs = word2vec_words()
+    with open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
+        for data_name in data_files:
+            with open(data_name, 'r') as in_sr:
+                for id_, path in iterate_norm_text(in_sr):
+                    words = path[-1]['text'].split()
+                    vec = np.vstack(word_vecs[word] for word in words if word in word_vecs).max(0)
+                    out_sr.write('_*{} {}\n'.format('_'.join(id_), ' '.join(map(str, vec))))
+
+
 def prepare_liblinear():
     with open('{}/sentence_vectors.txt'.format(data_dir)) as vect_sr:
         for data_name, liblinear_name in zip(data_files, liblinear_files):
-            with open(data_name) as data_sr, open(liblinear_name, 'w') as out_sr:
-                # data_sr first to not over-consume data_sr
-                for data_line, vect_line in zip(data_sr, vect_sr):
-                    classif = next(iter(json.loads(data_line).values()))
-                    classif = classif//5 if classif is not None else -1
-                    if classif == -1 and os.path.split(data_name)[1] == 'train.json':
-                        # logistic regression doesn't use unsupervised training data
-                        continue
+            with open(data_name) as in_sr, open(liblinear_name, 'w') as out_sr:
+                # text first to not over-consume vect_sr
+                for (id_, path), vect_line in zip(iterate_text(in_sr), vect_sr):
+                    label = path[-1].get('label', -1)
                     out_data = ' '.join('{}:{}'.format(i + 1, v) for i, v in enumerate(vect_line.strip().split()[1:]))
-                    out_sr.write('{} {}\n'.format(classif, out_data))
+                    out_sr.write('{} {}\n'.format(label, out_data))
 
 
-def train_dev():
+def train():
     os.system('liblinear/train -s 0 {0}/train.txt {0}/train.logreg'.format(data_dir))
-    os.system('liblinear/predict -b 1 {0}/dev.txt {0}/train.logreg {0}/dev.logreg'.format(data_dir))
 
 
-def test():
-    os.system('liblinear/predict -b 1 {0}/test.txt {0}/train.logreg {0}/test.logreg > /dev/null'.format(data_dir))
-    # output csv file
-    with open('{}/test.json'.format(data_dir)) as json_sr, \
-            open('{}/test.logreg'.format(data_dir)) as logreg_sr, \
-            open('{}/test.csv'.format(data_dir), 'w') as out_sr:
+def test(test_name):
+    os.system('liblinear/predict -b 1 {0}/{1}.txt {0}/train.logreg {0}/{1}.logreg'.format(data_dir, test_name))
+    with open('{0}/{1}.json'.format(data_dir, test_name)) as in_sr, \
+            open('{0}/{1}.logreg'.format(data_dir, test_name)) as logreg_sr, \
+            open('{0}/{1}_out.json'.format(data_dir, test_name), 'w') as out_sr:
+        prev_path = (None,)
+        for (id_, path), logreg_line in zip(iterate_text(in_sr), itertools.islice(logreg_sr, 1, None)):
+            if prev_path[0] and prev_path[0] != path[0]:
+                out_sr.write(json.dumps(prev_path[0]) + '\n')
+            label, prob_pos, prob_neg, prob_nt = logreg_line.split()
+            path[-1].update({'label': int(label), 'prob_pos': prob_pos, 'prob_neg': prob_neg, 'prob_nt': prob_nt})
+            prev_path = path
+        if prev_path[0]:
+            out_sr.write(json.dumps(prev_path[0]) + '\n')
+
+
+def test_dev():
+    test('dev')
+
+
+def test_semeval():
+    test('test')
+    with open('{}/test_out.json'.format(data_dir)) as in_sr, open('{}/test_out.txt'.format(data_dir), 'w') as out_sr:
+        for id_, path in iterate_text(in_sr):
+            out_sr.write('NA\t{}\t{}\n'.format(id_[0], ['negative', 'neutral', 'positive'][path[-1]['label']]))
+    with temp_chdir('scoring'):
+        os.system('./score-semeval2015-task10-subtaskB.pl ../{}/test_out.txt'.format(data_dir))
+
+
+def test_pitchwise():
+    test('test')
+    with open('{}/test_out.json'.format(data_dir)) as in_sr, open('{}/test.csv'.format(data_dir), 'w') as out_sr:
         out_csv = csv.writer(out_sr)
         out_csv.writerow(['docid', 'sentid', 'class', 'prob_pos', 'prob_neg', 'prob_nt', 'sentence'])
-        for json_line, logreg_line in zip(json_sr, itertools.islice(logreg_sr, 1, None)):
-            obj = json.loads(json_line)
-            out_csv.writerow([obj['docid'], obj['sentid']] + logreg_line.split() + [obj['text']])
+        for id_, path in iterate_text(in_sr):
+            obj = path[-1]
+            out_csv.writerow(id_ + [obj['label'], obj['prob_pos'], obj['prob_neg'], obj['prob_nt'], obj['text']])
 
 
 def main():
-    word2vec()
+    # word2vec()
+    # word2vec_write_docs()
+    # word2vec_write_average()
+    word2vec_write_max()
     prepare_liblinear()
-    train_dev()
-    test()
+    train()
+    test_dev()
+    test_semeval()
 
 if __name__ == '__main__':
     main()

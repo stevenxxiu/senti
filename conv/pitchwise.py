@@ -16,8 +16,8 @@ def main():
             for i, sent in enumerate(line.split('|||')):
                 if not sent:
                     continue
-                sents.append({'sent_id': str(i), 'text': sent})
-            out_sr.write(json.dumps({'doc_id': doc_id, 'sentences': sents}) + '\n')
+                sents.append({'id': str(i), 'text': sent, 'norm': True})
+            out_sr.write(json.dumps({'id': doc_id, 'sentences': sents}) + '\n')
 
 if __name__ == '__main__':
     main()
