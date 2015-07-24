@@ -120,7 +120,9 @@ def word2vec_inverse():
                 i += 1
     with open('{}/alldata.txt'.format(data_dir), 'w') as out_sr:
         for word, docs in word_to_docs.items():
-            out_sr.write('_*{} {}\n'.format(word, ' '.join(docs)))
+            # remove common & rare words
+            if 10 <= len(docs) <= 2000:
+                out_sr.write('_*{} {}\n'.format(word, ' '.join(docs)))
     os.system(r'''
         time word2vec/word2vec -train {0}/alldata.txt -output {0}/vectors.txt -cbow 0 -size 100 -window 10
         -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
