@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import json
-import re
 import os
+import re
 
 
 def main():

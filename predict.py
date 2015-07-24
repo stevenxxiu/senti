@@ -5,8 +5,10 @@ import itertools
 import json
 import os
 import re
-import numpy as np
+from collections import defaultdict
 from contextlib import contextmanager
+
+import numpy as np
 
 data_dir = 'data/twitter'
 data_files = [os.path.join(data_dir, path) for path in ('train.json', 'dev.json', 'test.json')]
@@ -48,7 +50,7 @@ def iterate_norm_text(sr):
 
 
 def word2vec():
-    # throw training & test data into word2vec and output the sentence vectors
+    # throw training & test data into word2vec, performing a word embedding
     with open('{}/alldata.txt'.format(data_dir), 'w') as out_sr:
         for data_name in data_files:
             with open(data_name, 'r') as in_sr:
@@ -61,14 +63,14 @@ def word2vec():
 
 
 def word2vec_words():
-    word_vecs = {}
+    word_to_vecs = {}
     with open('{}/vectors.txt'.format(data_dir), encoding='ISO-8859-1') as in_sr:
         lines = iter(in_sr)
         dims = tuple(map(int, re.match(r'(\d+) (\d+)', next(lines)).groups()))
         for line in lines:
             word, vec = re.match(r'(\S+) (.+)', line).groups()
-            word_vecs[word] = np.array(list(map(float, vec.strip().split())))
-    return dims, word_vecs
+            word_to_vecs[word] = np.array(list(map(float, vec.strip().split())))
+    return dims, word_to_vecs
 
 
 def word2vec_write_docs():
@@ -80,28 +82,56 @@ def word2vec_write_docs():
 
 
 def word2vec_write_average():
-    dims, word_vecs = word2vec_words()
+    dims, word_to_vecs = word2vec_words()
     with open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
         for data_name in data_files:
             with open(data_name, 'r') as in_sr:
                 for id_, path in iterate_norm_text(in_sr):
                     words = path[-1]['text'].split()
-                    vec = np.vstack(word_vecs[word] for word in words if word in word_vecs).mean(0)
+                    vec = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs).mean(0)
                     out_sr.write('_*{} {}\n'.format('_'.join(id_), ' '.join(map(str, vec))))
 
 
 def word2vec_write_max():
     # component-wise abs max, doesn't make much sense because the components aren't importance, but worth a try
-    dims, word_vecs = word2vec_words()
+    dims, word_to_vecs = word2vec_words()
     with open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
         for data_name in data_files:
             with open(data_name, 'r') as in_sr:
                 for id_, path in iterate_norm_text(in_sr):
                     words = path[-1]['text'].split()
-                    words_matrix = np.vstack(word_vecs[word] for word in words if word in word_vecs)
+                    words_matrix = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs)
                     arg_maxes = abs(words_matrix).argmax(0)
                     vec = words_matrix[arg_maxes, np.arange(len(arg_maxes))]
                     out_sr.write('_*{} {}\n'.format('_'.join(id_), ' '.join(map(str, vec))))
+
+
+def word2vec_inverse():
+    # throw training & test data into word2vec, performing a document embedding
+    # number documents using integers for easy sorting later
+    word_to_docs = defaultdict(set)
+    i = 0
+    for data_name in data_files:
+        with open(data_name, 'r') as in_sr:
+            for id_, path in iterate_norm_text(in_sr):
+                words = path[-1]['text'].split()
+                for word in words:
+                    word_to_docs[word].add(str(i))
+                i += 1
+    with open('{}/alldata.txt'.format(data_dir), 'w') as out_sr:
+        for word, docs in word_to_docs.items():
+            out_sr.write('_*{} {}\n'.format(word, ' '.join(docs)))
+    os.system(r'''
+        time word2vec/word2vec -train {0}/alldata.txt -output {0}/vectors.txt -cbow 0 -size 100 -window 10
+        -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
+    '''.replace('\n', '').format(data_dir))
+    with open('{}/vectors.txt'.format(data_dir), encoding='ISO-8859-1') as in_sr, \
+            open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
+        for line in itertools.islice(in_sr, 1, None):
+            if not line.startswith('_*') and not line.startswith('</s>'):
+                out_sr.write(line)
+    os.system('sort -n {0}/sentence_vectors.txt > {0}/sentence_vectors_sorted.txt'.format(data_dir))
+    os.system('mv {0}/sentence_vectors_sorted.txt {0}/sentence_vectors.txt'.format(data_dir))
 
 
 def prepare_liblinear():
@@ -162,7 +192,8 @@ def main():
     # word2vec()
     # word2vec_write_docs()
     # word2vec_write_average()
-    word2vec_write_max()
+    # word2vec_write_max()
+    word2vec_inverse()
     prepare_liblinear()
     train()
     test_dev()
