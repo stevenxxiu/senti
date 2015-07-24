@@ -91,14 +91,16 @@ def word2vec_write_average():
 
 
 def word2vec_write_max():
-    # component-wise max
+    # component-wise abs max, doesn't make much sense because the components aren't importance, but worth a try
     dims, word_vecs = word2vec_words()
     with open('{}/sentence_vectors.txt'.format(data_dir), 'w') as out_sr:
         for data_name in data_files:
             with open(data_name, 'r') as in_sr:
                 for id_, path in iterate_norm_text(in_sr):
                     words = path[-1]['text'].split()
-                    vec = np.vstack(word_vecs[word] for word in words if word in word_vecs).max(0)
+                    words_matrix = np.vstack(word_vecs[word] for word in words if word in word_vecs)
+                    arg_maxes = abs(words_matrix).argmax(0)
+                    vec = words_matrix[arg_maxes, np.arange(len(arg_maxes))]
                     out_sr.write('_*{} {}\n'.format('_'.join(id_), ' '.join(map(str, vec))))
 
 
