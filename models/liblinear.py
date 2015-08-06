@@ -1,5 +1,4 @@
 
-import itertools
 import os
 import re
 
@@ -26,7 +25,9 @@ class LibLinear:
             .format(third_dir)
         )
         with open('liblinear_predict.txt') as sr:
-            for line in itertools.islice(sr, 1, None):
+            lines = iter(sr)
+            labels = re.match(r'labels (.+)', next(lines)).group(1).split()
+            for line in lines:
                 label, probs = re.match(r'(\S+) (.+)', line).groups()
-                probs = list(map(float, probs))
+                probs = dict(zip(labels, list(map(float, probs.split()))))
                 yield label, probs

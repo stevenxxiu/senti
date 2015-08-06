@@ -58,12 +58,10 @@ class SourceStream(Stream):
 
 
 class MergedStream(Stream):
-    def __init__(self, streams):
-        super().__init__('_'.join(stream.name for stream in streams))
-        self.streams = streams
+    def __init__(self, src_srs):
+        super().__init__('_'.join(stream.name for stream in src_srs))
+        self.src_srs = src_srs
 
     def __iter__(self):
-        for stream in self.streams:
-            i = 0
-            for i, obj in enumerate(stream):
-                yield obj
+        for sr in self.src_srs:
+            yield from sr
