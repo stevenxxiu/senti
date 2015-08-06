@@ -61,28 +61,9 @@ class MergedStream(Stream):
     def __init__(self, streams):
         super().__init__('_'.join(stream.name for stream in streams))
         self.streams = streams
-        self.counts = []
 
     def __iter__(self):
         for stream in self.streams:
             i = 0
             for i, obj in enumerate(stream):
                 yield obj
-            self.counts.append(i)
-
-
-class SplitStream(Stream):
-    def __init__(self, name, stream_iter, count):
-        super().__init__(name)
-        self.stream_iter = stream_iter
-        self.count = count
-
-    def __iter__(self):
-        for i, obj in zip(range(self.count), self.stream_iter):
-            yield obj
-
-
-def split_streams(names, stream, counts):
-    stream_iter = iter(stream)
-    for name, count in zip(names, counts):
-        yield SplitStream(name, stream_iter, count)
