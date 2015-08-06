@@ -1,6 +1,5 @@
 
 /.idea
 /data
-/liblinear
-/scoring
-/word2vec
+/third
+__pycache__/
