@@ -5,25 +5,24 @@ import os
 
 import numpy as np
 
-from senti.features.word2vec import *
+from senti.features import *
 from senti.models.liblinear import LibLinear
 from senti.score import write_score
 from senti.stream import MergedStream, SourceStream
-from senti.transforms.lower import LowerTransform
-from senti.transforms.normalize import NormalizeTransform
+from senti.transforms import *
 
 
 def main():
     os.chdir('../data/twitter')
-    data_files = ['train.json', 'dev.json', 'test.json']
 
-    # throw all files into word2vec
-    normed_sr = LowerTransform(NormalizeTransform(MergedStream(list(map(SourceStream, data_files)))))
-    w2v_doc_sr = Word2VecDocs(normed_sr, reuse=True)
-    w2v_word_avg_sr = Word2VecWordAverage(normed_sr, reuse=True)
-    w2v_word_max_sr = Word2VecWordMax(normed_sr, reuse=True)
-    w2v_word_inv_sr = Word2VecInverse(normed_sr, reuse=True)
-    feature_sr = w2v_doc_sr
+    # features
+    normed_sr = NormalizeTransform(MergedStream(list(map(SourceStream, ['train.json', 'dev.json', 'test.json']))))
+    all_caps_sr = AllCaps(normed_sr)
+    w2v_doc_sr = Word2VecDocs(LowerTransform(normed_sr), reuse=True)
+    w2v_word_avg_sr = Word2VecWordAverage(LowerTransform(normed_sr), reuse=True)
+    w2v_word_max_sr = Word2VecWordMax(LowerTransform(normed_sr), reuse=True)
+    w2v_word_inv_sr = Word2VecInverse(LowerTransform(normed_sr), reuse=True)
+    feature_sr = VecConcatTransform(w2v_doc_sr, all_caps_sr)
 
     # train
     vecs = (obj['vec'] for obj in feature_sr)
