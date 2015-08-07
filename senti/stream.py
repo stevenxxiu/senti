@@ -59,7 +59,7 @@ class SourceStream(Stream):
 
 class MergedStream(Stream):
     def __init__(self, src_srs):
-        super().__init__('_'.join(stream.name for stream in src_srs))
+        super().__init__('merge({})'.format(','.join(stream.name for stream in src_srs)))
         self.src_srs = src_srs
 
     def __iter__(self):

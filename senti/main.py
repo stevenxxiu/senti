@@ -7,9 +7,10 @@ import numpy as np
 
 from senti.features.word2vec import *
 from senti.models.liblinear import LibLinear
-from senti.preprocess import NormTextStream
 from senti.score import write_score
 from senti.stream import MergedStream, SourceStream
+from senti.transforms.lower import LowerTransform
+from senti.transforms.normalize import NormalizeTransform
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     data_files = ['train.json', 'dev.json', 'test.json']
 
     # throw all files into word2vec
-    normed_sr = NormTextStream(MergedStream(list(map(SourceStream, data_files))))
+    normed_sr = LowerTransform(NormalizeTransform(MergedStream(list(map(SourceStream, data_files)))))
     w2v_doc_sr = Word2VecDocs(normed_sr, reuse=True)
     w2v_word_avg_sr = Word2VecWordAverage(normed_sr, reuse=True)
     w2v_word_max_sr = Word2VecWordMax(normed_sr, reuse=True)

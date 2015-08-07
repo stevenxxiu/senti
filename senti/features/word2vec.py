@@ -3,6 +3,7 @@ import itertools
 import json
 import os
 import re
+import shlex
 from collections import defaultdict
 
 import numpy as np
@@ -23,16 +24,16 @@ class Word2Vec(PersistableStream):
             -cbow 0 -size 100 -window 10 -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1
             -sentence-vectors 1
         '''.replace('\n', '')
-        super().__init__('{}.word2vec'.format(src_sr.name), (src_sr,), reuse, self.cmd)
+        super().__init__('word2vec({})'.format(src_sr.name), (src_sr,), reuse, self.cmd)
         self.reuse_name = '{}.txt'.format(self.name)
 
     def _iter(self):
         with open('word2vec_train.txt', 'w', encoding='utf-8') as sr:
             for obj in self.src_srs[0]:
-                sr.write('_*{} {}\n'.format(obj['id'], obj['text']))
+                sr.write('_*{} {}\n'.format(obj['id'], ' '.join(obj['tokens'])))
         os.system(
             'time {}/word2vec/word2vec -train word2vec_train.txt -output {} {}'
-            .format(third_dir, self.reuse_name, self.cmd)
+            .format(third_dir, shlex.quote(self.reuse_name), self.cmd)
         )
 
     def __iter__(self):
@@ -47,7 +48,7 @@ class Word2Vec(PersistableStream):
 class Word2VecDocs(PersistableStream):
     def __init__(self, src_sr, cmd=None, reuse=False):
         self.w2v_sr = Word2Vec(src_sr, cmd, reuse)
-        super().__init__('{}.word2vec_docs'.format(src_sr.name), (src_sr,), reuse, self.w2v_sr.reuse_options)
+        super().__init__('word2vec_docs({})'.format(src_sr.name), (src_sr,), reuse, self.w2v_sr.reuse_options)
 
     def _iter(self):
         for line in self.w2v_sr:
@@ -74,14 +75,15 @@ class Word2VecWords(PersistableStream):
 
 class Word2VecWordAverage(Word2VecWords):
     def __init__(self, src_sr, cmd=None, reuse=False):
-        super().__init__('{}.word2vec_avg'.format(src_sr.name), src_sr, cmd, reuse)
+        super().__init__('word2vec_avg({})'.format(src_sr.name), src_sr, cmd, reuse)
 
     def _iter(self):
         dims, word_to_vecs = self.get_words()
         for obj in self.src_srs[0]:
-            words = obj['text'].split()
+            words = obj.pop('tokens')
             vec = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs).mean(0)
-            yield {'id': obj['id'], 'vec': vec.tolist()}
+            obj['vec'] = vec.tolist()
+            yield obj
 
 
 class Word2VecWordMax(Word2VecWords):
@@ -90,16 +92,17 @@ class Word2VecWordMax(Word2VecWords):
     '''
 
     def __init__(self, src_sr, cmd=None, reuse=False):
-        super().__init__('{}.word2vec_max'.format(src_sr.name), src_sr, cmd, reuse)
+        super().__init__('word2vec_max({})'.format(src_sr.name), src_sr, cmd, reuse)
 
     def _iter(self):
         dims, word_to_vecs = self.get_words()
         for obj in self.src_srs[0]:
-            words = obj['text'].split()
+            words = obj.pop('tokens')
             words_matrix = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs)
             arg_maxes = abs(words_matrix).argmax(0)
             vec = words_matrix[arg_maxes, np.arange(len(arg_maxes))]
-            yield {'id': obj['id'], 'vec': vec.tolist()}
+            obj['vec'] = vec.tolist()
+            yield obj
 
 
 class Word2VecInverse(PersistableStream):
@@ -112,14 +115,14 @@ class Word2VecInverse(PersistableStream):
             -cbow 0 -size 100 -window 10 -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1
             -sentence-vectors 1
         '''.replace('\n', '')
-        super().__init__('{}.word2vec_inv'.format(src_sr.name), (src_sr,), reuse, self.cmd)
+        super().__init__('word2vec_inv({})'.format(src_sr.name), (src_sr,), reuse, self.cmd)
         self.reuse_name = '{}.txt'.format(self.name)
 
     def _iter(self):
         # number documents using integers for easy sorting later
         word_to_docs = defaultdict(set)
         for i, obj in enumerate(self.src_srs[0]):
-            words = obj['text'].split()
+            words = obj['tokens']
             for word in words:
                 word_to_docs[word].add(str(i))
         with open('word2vec_train.txt', 'w', encoding='utf-8') as out_sr:
@@ -129,14 +132,14 @@ class Word2VecInverse(PersistableStream):
                     out_sr.write('_*{} {}\n'.format(word, ' '.join(docs)))
         os.system(
             'time {}/word2vec/word2vec -train word2vec_train.txt -output {} {}'
-            .format(third_dir, self.reuse_name, self.cmd)
+            .format(third_dir, shlex.quote(self.reuse_name), self.cmd)
         )
         with open(self.reuse_name, encoding='ISO-8859-1') as in_sr, open('{}~'.format(self.reuse_name), 'w') as out_sr:
             for line in itertools.islice(in_sr, 1, None):
                 if not line.startswith('_*') and not line.startswith('</s>'):
                     out_sr.write(line)
-        os.system('sort -n {0}~ > {0}'.format(self.reuse_name))
-        os.system('rm {}~'.format(self.reuse_name))
+        os.system('sort -n {0}~ > {0}'.format(shlex.quote(self.reuse_name)))
+        os.system('rm {}~'.format(shlex.quote(self.reuse_name)))
 
     def __iter__(self):
         if not self.reusable():
@@ -146,4 +149,5 @@ class Word2VecInverse(PersistableStream):
         with open(self.reuse_name) as sr:
             for obj, line in zip(self.src_srs[0], sr):
                 vec = re.match(r'(\S+) (.+)', line).group(2)
-                yield {'id': obj['id'], 'vec': list(map(float, vec.strip().split()))}
+                obj['vec'] = list(map(float, vec.strip().split()))
+                yield obj
