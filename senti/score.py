@@ -15,8 +15,8 @@ def write_score(name, gold_labels, pred_scores, classes, average_classes):
     precision, recall, fscore, _ = precision_recall_fscore_support(pred_labels, gold_labels)
     for t in zip(classes, precision, recall, fscore):
         print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
-    print('F1 average: ', np.mean(list(fscore[classes.index(c)] for c in average_classes)))
     print('Accuracy: ', accuracy_score(pred_labels, gold_labels))
+    print('F1 average: ', np.mean(list(fscore[classes.index(c)] for c in average_classes)))
 
     with PdfPages(name) as pdf:
         fpr = {}
