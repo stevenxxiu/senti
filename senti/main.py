@@ -29,7 +29,7 @@ def main():
     model = LibLinear()
     model.fit(vecs, (obj['label'] for obj in SourceStream('train.json')))
 
-    # write prediction results
+    # write predictions
     gold_labels = []
     all_probs = []
     os.makedirs('predictions', exist_ok=True)
@@ -44,7 +44,7 @@ def main():
             gold_labels.append(src_obj['label'])
             all_probs.append(probs)
 
-    # write prediction scores
+    # write scores
     os.makedirs('scores', exist_ok=True)
     write_score('scores/{}.pdf'.format(feature_sr.name), gold_labels, np.array(all_probs), model.classes_, (0, 2))
 
