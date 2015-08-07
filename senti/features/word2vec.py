@@ -10,6 +10,8 @@ import numpy as np
 from senti.stream import PersistableStream
 from senti.utils import third_dir
 
+__all__ = ['Word2Vec', 'Word2VecDocs', 'Word2VecWordAverage', 'Word2VecWordMax', 'Word2VecInverse']
+
 
 class Word2Vec(PersistableStream):
     '''
@@ -21,7 +23,7 @@ class Word2Vec(PersistableStream):
             -cbow 0 -size 100 -window 10 -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1
             -sentence-vectors 1
         '''.replace('\n', '')
-        super().__init__('word2vec.{}'.format(src_sr.name), src_sr, reuse, self.cmd)
+        super().__init__('{}.word2vec'.format(src_sr.name), src_sr, reuse, self.cmd)
         self.reuse_name = '{}.txt'.format(self.name)
 
     def _iter(self):
@@ -45,7 +47,7 @@ class Word2Vec(PersistableStream):
 class Word2VecDocs(PersistableStream):
     def __init__(self, src_sr, cmd=None, reuse=False):
         self.w2v_sr = Word2Vec(src_sr, cmd, reuse)
-        super().__init__('word2vec_docs.{}'.format(src_sr.name), src_sr, reuse, self.w2v_sr.options)
+        super().__init__('{}.word2vec_docs'.format(src_sr.name), src_sr, reuse, self.w2v_sr.options)
 
     def _iter(self):
         for line in self.w2v_sr:
@@ -72,7 +74,7 @@ class Word2VecWords(PersistableStream):
 
 class Word2VecWordAverage(Word2VecWords):
     def __init__(self, src_sr, cmd=None, reuse=False):
-        super().__init__('word2vec_avg.{}'.format(src_sr.name), src_sr, cmd, reuse)
+        super().__init__('{}.word2vec_avg'.format(src_sr.name), src_sr, cmd, reuse)
 
     def _iter(self):
         dims, word_to_vecs = self.get_words()
@@ -88,7 +90,7 @@ class Word2VecWordMax(Word2VecWords):
     '''
 
     def __init__(self, src_sr, cmd=None, reuse=False):
-        super().__init__('word2vec_max.{}'.format(src_sr.name), src_sr, cmd, reuse)
+        super().__init__('{}.word2vec_max'.format(src_sr.name), src_sr, cmd, reuse)
 
     def _iter(self):
         dims, word_to_vecs = self.get_words()
@@ -110,7 +112,7 @@ class Word2VecInverse(PersistableStream):
             -cbow 0 -size 100 -window 10 -negative 5 -hs 0 -sample 1e-4 -threads 40 -binary 0 -iter 20 -min-count 1
             -sentence-vectors 1
         '''.replace('\n', '')
-        super().__init__('word2vec_inv.{}'.format(src_sr.name), src_sr, reuse, self.cmd)
+        super().__init__('{}.word2vec_inv'.format(src_sr.name), src_sr, reuse, self.cmd)
         self.reuse_name = '{}.txt'.format(self.name)
 
     def _iter(self):

@@ -1,32 +1,41 @@
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+from sklearn import preprocessing
+from sklearn.metrics import accuracy_score, auc, precision_recall_fscore_support, roc_curve
 
 
-def score(labels, scores):
-    n_classes = len(labels)
+def write_score(name, gold_labels, pred_scores, classes, average_classes):
+    gold_scores = preprocessing.label_binarize(gold_labels, classes)
+    pred_labels = list(classes[i] for i in np.argmax(pred_scores, axis=1))
 
-    # plot precision-recall
-    precision = {}
-    recall = {}
-    average_precision = {}
-    for i in range(n_classes):
-        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i],
-                                                            y_score[:, i])
-        average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+    precision, recall, fscore, _ = precision_recall_fscore_support(pred_labels, gold_labels)
+    for t in zip(classes, precision, recall, fscore):
+        print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
+    print('F1 average: ', np.mean(list(fscore[classes.index(c)] for c in average_classes)))
+    print('Accuracy: ', accuracy_score(pred_labels, gold_labels))
 
-    # Compute micro-average ROC curve and ROC area
-    precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(),
-        y_score.ravel())
-    average_precision["micro"] = average_precision_score(y_test, y_score,
-                                                         average="micro")
-
-    # Plot Precision-Recall curve
-    plt.clf()
-    plt.plot(recall[0], precision[0], label='Precision-Recall curve')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
-    plt.xlim([0.0, 1.0])
-    plt.title('Precision-Recall example: AUC={0:0.2f}'.format(average_precision[0]))
-    plt.legend(loc="lower left")
-    plt.show()
+    with PdfPages(name) as pdf:
+        fpr = {}
+        tpr = {}
+        roc_auc = {}
+        for i in range(len(classes)):
+            fpr[i], tpr[i], _ = roc_curve(gold_scores[:, i], pred_scores[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+        fpr['micro'], tpr['micro'], _ = roc_curve(gold_scores.ravel(), pred_scores.ravel())
+        roc_auc['micro'] = auc(fpr['micro'], tpr['micro'])
+        plt.figure()
+        plt.plot(fpr['micro'], tpr['micro'], label='micro-average (area = {:.2f})'.format(roc_auc['micro']))
+        for i in range(len(classes)):
+            plt.plot(fpr[i], tpr[i], label='{0} (area = {1:.2f})'.format(i, roc_auc[i]))
+        plt.plot([0, 1], [0, 1], 'k--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curves')
+        plt.legend(loc='lower right')
+        pdf.savefig()
