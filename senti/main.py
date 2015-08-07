@@ -19,8 +19,8 @@ def main():
     # throw all files into word2vec
     normed_sr = NormTextStream(MergedStream(list(map(SourceStream, data_files))))
     w2v_doc_sr = Word2VecDocs(normed_sr, reuse=True)
-    w2v_word_avg_sr = Word2VecWordMax(normed_sr, reuse=True)
-    w2v_word_max_sr = Word2VecWordAverage(normed_sr, reuse=True)
+    w2v_word_avg_sr = Word2VecWordAverage(normed_sr, reuse=True)
+    w2v_word_max_sr = Word2VecWordMax(normed_sr, reuse=True)
     w2v_word_inv_sr = Word2VecInverse(normed_sr, reuse=True)
     feature_sr = w2v_doc_sr
 
