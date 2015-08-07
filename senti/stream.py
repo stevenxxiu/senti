@@ -10,20 +10,20 @@ class Stream:
 
 
 class PersistableStream(Stream):
-    def __init__(self, name, src_sr, reuse=False, options=None):
+    def __init__(self, name, src_srs=(), reuse=False, reuse_options=None):
         super().__init__(name)
-        self.src_sr = src_sr
+        self.src_srs = src_srs
         self.reuse = reuse
         self.reuse_name = '{}.json'.format(name)
-        self.options = options
+        self.reuse_options = reuse_options
         self.options_name = '{}.options.json'.format(name)
 
-    def can_reuse(self):
+    def reusable(self):
         with suppress(AttributeError):
-            if self.src_sr.reuse and not self.src_sr.can_reuse():
+            if any(src_sr.reuse and not src_sr.reusable() for src_sr in self.src_srs):
                 return False
         with suppress(FileNotFoundError), open(self.options_name) as sr:
-            if self.options == json.load(sr):
+            if self.reuse_options == json.load(sr):
                 return True
         return False
 
@@ -32,13 +32,13 @@ class PersistableStream(Stream):
 
     def __iter__(self):
         if self.reuse:
-            if not self.can_reuse():
+            if not self.reusable():
                 with open(self.reuse_name, 'w') as sr:
                     for obj in self._iter():
                         sr.write(json.dumps(obj) + '\n')
                 # only write options on success
                 with open(self.options_name, 'w') as sr:
-                    json.dump(self.options, sr)
+                    json.dump(self.reuse_options, sr)
             with open(self.reuse_name) as sr:
                 for line in sr:
                     yield json.loads(line)

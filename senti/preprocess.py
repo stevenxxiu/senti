@@ -13,9 +13,9 @@ def normalize_text(text):
 
 class NormTextStream(PersistableStream):
     def __init__(self, src_sr, reuse=False):
-        super().__init__('{}.norm'.format(src_sr.name), src_sr, reuse=reuse)
+        super().__init__('{}.norm'.format(src_sr.name), (src_sr,), reuse=reuse)
 
     def _iter(self):
-        for obj in self.src_sr:
+        for obj in self.src_srs[0]:
             obj['text'] = normalize_text(obj['text'])
             yield obj
