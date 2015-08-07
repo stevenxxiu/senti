@@ -7,16 +7,16 @@ from senti.utils import third_dir
 
 
 class LibLinear:
-    def __init__(self):
+    def __init__(self, cmd):
+        self.cmd = cmd
         self.classes_ = None
 
-    @staticmethod
-    def fit(vecs, labels):
+    def fit(self, vecs, labels):
         with open('liblinear_train.txt', 'w') as sr:
             for label, vec in zip(labels, vecs):
                 line = ' '.join('{}:{}'.format(i + 1, v) for i, v in enumerate(vec))
                 sr.write('{} {}\n'.format(json.dumps(label, separators=(',', ':')).replace(' ', '\\u0020'), line))
-        os.system('{}/liblinear/train -s 0 liblinear_train.txt liblinear_model.txt'.format(third_dir))
+        os.system('{}/liblinear/train {} liblinear_train.txt liblinear_model.txt'.format(third_dir, self.cmd))
 
     def predict_proba(self, vecs):
         with open('liblinear_test.txt', 'w') as sr:

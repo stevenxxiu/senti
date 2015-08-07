@@ -26,7 +26,7 @@ def main():
 
     # train
     vecs = (obj['vec'] for obj in feature_sr)
-    model = LibLinear()
+    model = LibLinear('-s 0')
     model.fit(vecs, (obj['label'] for obj in SourceStream('train.json')))
 
     # write predictions
