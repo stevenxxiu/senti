@@ -70,17 +70,18 @@ class MergedStream(Stream):
 
 
 class SplitStream(Stream):
-    def __init__(self, name, merged_sr, src_sr):
+    def __init__(self, name, merged_sr_iter, src_sr):
         super().__init__(name)
-        self.merged_sr = merged_sr
+        self.merged_sr_iter = merged_sr_iter
         self.src_sr = src_sr
 
     def __iter__(self):
-        for src_obj, obj in zip(self.src_sr, self.merged_sr):
+        for src_obj, obj in zip(self.src_sr, self.merged_sr_iter):
             src_obj.update(obj)
             yield src_obj
 
 
 def split_streams(merged_sr, src_srs):
+    merged_sr_iter = iter(merged_sr)
     for src_sr in src_srs:
-        yield SplitStream('{}[{}]'.format(merged_sr.name, src_sr.name), merged_sr, src_sr)
+        yield SplitStream('{}[{}]'.format(merged_sr.name, src_sr.name), merged_sr_iter, src_sr)
