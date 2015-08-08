@@ -1,15 +1,38 @@
 #!/usr/bin/env python
 
+
 import json
 import os
 
 import numpy as np
+from scipy.sparse import coo_matrix
+from sklearn.linear_model import LogisticRegression
 
 from senti.features import *
-from senti.models.liblinear import LibLinear
 from senti.score import write_score
-from senti.stream import MergedStream, SourceStream
+from senti.stream import MergedStream, SourceStream, split_streams
 from senti.transforms import *
+from senti.utils import indexes_of
+
+
+def feature_label_vecs(sr):
+    # assume sparsity for safety
+    data = []
+    row_indices = []
+    col_indices = []
+    labels = []
+    for i, obj in enumerate(sr):
+        vec = obj['vec']
+        if isinstance(vec, coo_matrix):
+            data.extend(vec.data)
+            col_indices.extend(vec.col)
+            row_indices.extend([i]*len(vec.data))
+        else:
+            data.extend(vec)
+            col_indices.extend(list(range(len(vec))))
+            row_indices.extend([i]*len(vec))
+        labels.append(obj['label'])
+    return coo_matrix((data, (row_indices, col_indices))), labels
 
 
 def main():
@@ -23,26 +46,24 @@ def main():
     w2v_word_max_sr = Word2VecWordMax(LowerTransform(normed_sr), reuse=True)
     w2v_word_inv_sr = Word2VecInverse(LowerTransform(normed_sr), reuse=True)
     feature_sr = VecConcatTransform(w2v_doc_sr, all_caps_sr)
+    feature_srs = split_streams(feature_sr, list(map(SourceStream, ['train.json', 'dev.json', 'test.json'])))
 
     # train
-    vecs = (obj['vec'] for obj in feature_sr)
-    model = LibLinear('-s 0')
-    model.fit(vecs, (obj['label'] for obj in SourceStream('train.json')))
+    vecs, labels = feature_label_vecs(next(feature_srs))
+    model = LogisticRegression()
+    model.fit(vecs, labels)
 
-    # write predictions
-    gold_labels = []
-    all_probs = []
+    # predict
+    vecs, gold_labels = feature_label_vecs(next(feature_srs))
+    all_probs = model.predict_proba(vecs)
     os.makedirs('predictions', exist_ok=True)
     with open('predictions/{}.json'.format(feature_sr.name), 'w') as sr:
-        for src_obj, probs in zip(SourceStream('dev.json'), model.predict_proba(vecs)):
+        for src_obj, probs in zip(SourceStream('dev.json'), all_probs):
+            indexes = indexes_of(model.classes_, [0, 1, 2])
             sr.write(json.dumps({
-                'id': src_obj['id'], 'label': model.classes_[np.argmax(probs)],
-                'prob_neg': probs[model.classes_.index(0)],
-                'prob_nt': probs[model.classes_.index(1)],
-                'prob_pos': probs[model.classes_.index(2)]
+                'id': src_obj['id'], 'label': int(model.classes_[np.argmax(probs)]),
+                'prob_neg': probs[indexes[0]], 'prob_nt': probs[indexes[1]], 'prob_pos': probs[indexes[2]]
             }) + '\n')
-            gold_labels.append(src_obj['label'])
-            all_probs.append(probs)
 
     # write scores
     os.makedirs('scores', exist_ok=True)

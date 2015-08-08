@@ -14,6 +14,5 @@ class PropTotalTransform(PersistableStream):
 
     def _iter(self):
         for obj in self.src_srs[0]:
-            vec = obj['vec']
-            l = sum(vec)
-            yield {'id': obj['id'], 'vec': list(x/l for x in vec)}
+            obj['vec'] /= obj['vec'].sum()
+            yield obj

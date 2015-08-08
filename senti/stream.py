@@ -3,6 +3,8 @@ import json
 import os
 from contextlib import suppress
 
+from senti.utils import SciPyJSONEncoder, decode_scipy_object
+
 
 class Stream:
     def __init__(self, name):
@@ -35,13 +37,13 @@ class PersistableStream(Stream):
             if not self.reusable():
                 with open(self.reuse_name, 'w') as sr:
                     for obj in self._iter():
-                        sr.write(json.dumps(obj) + '\n')
+                        sr.write(json.dumps(obj, cls=SciPyJSONEncoder) + '\n')
                 # only write options on success
                 with open(self.options_name, 'w') as sr:
                     json.dump(self.reuse_options, sr)
             with open(self.reuse_name) as sr:
                 for line in sr:
-                    yield json.loads(line)
+                    yield json.loads(line, object_hook=decode_scipy_object)
         else:
             yield from self._iter()
 
@@ -65,3 +67,20 @@ class MergedStream(Stream):
     def __iter__(self):
         for sr in self.src_srs:
             yield from sr
+
+
+class SplitStream(Stream):
+    def __init__(self, name, merged_sr, src_sr):
+        super().__init__(name)
+        self.merged_sr = merged_sr
+        self.src_sr = src_sr
+
+    def __iter__(self):
+        for src_obj, obj in zip(self.src_sr, self.merged_sr):
+            src_obj.update(obj)
+            yield src_obj
+
+
+def split_streams(merged_sr, src_srs):
+    for src_sr in src_srs:
+        yield SplitStream('{}[{}]'.format(merged_sr.name, src_sr.name), merged_sr, src_sr)

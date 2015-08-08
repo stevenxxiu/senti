@@ -1,4 +1,6 @@
 
+import numpy as np
+
 from senti.stream import PersistableStream
 
 __all__ = ['AllCaps']
@@ -15,5 +17,5 @@ class AllCaps(PersistableStream):
     def _iter(self):
         for obj in self.src_srs[0]:
             tokens = obj.pop('tokens')
-            obj['vec'] = [sum(1 for token in tokens if token.isupper())]
+            obj['vec'] = np.array([sum(1 for token in tokens if token.isupper())])
             yield obj

@@ -14,6 +14,5 @@ class PropTokensTransform(PersistableStream):
 
     def _iter(self):
         for obj in self.src_srs[0]:
-            vec = obj['vec']
-            l = obj['ntokens']
-            yield {'id': obj['id'], 'vec': list(x/l for x in vec)}
+            obj['vec'] /= obj['ntokens']
+            yield obj

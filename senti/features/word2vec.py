@@ -54,7 +54,7 @@ class Word2VecDocs(PersistableStream):
         for line in self.w2v_sr:
             if line.startswith('_*'):
                 id_, vec = re.match(r'(\S+) (.+)', line).groups()
-                yield {'id': id_, 'vec': list(map(float, vec.strip().split()))}
+                yield {'id': id_, 'vec': np.fromiter(vec.strip().split(), float)}
 
 
 # noinspection PyAbstractClass
@@ -69,7 +69,7 @@ class Word2VecWords(PersistableStream):
         dims = tuple(map(int, re.match(r'(\d+) (\d+)', next(lines)).groups()))
         for line in lines:
             word, vec = re.match(r'(\S+) (.+)', line).groups()
-            word_to_vecs[word] = np.array(list(map(float, vec.strip().split())))
+            word_to_vecs[word] = np.fromiter(vec.strip().split(), float)
         return dims, word_to_vecs
 
 
@@ -81,8 +81,7 @@ class Word2VecWordAverage(Word2VecWords):
         dims, word_to_vecs = self.get_words()
         for obj in self.src_srs[0]:
             words = obj.pop('tokens')
-            vec = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs).mean(0)
-            obj['vec'] = vec.tolist()
+            obj['vec'] = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs).mean(0)
             yield obj
 
 
@@ -100,8 +99,7 @@ class Word2VecWordMax(Word2VecWords):
             words = obj.pop('tokens')
             words_matrix = np.vstack(word_to_vecs[word] for word in words if word in word_to_vecs)
             arg_maxes = abs(words_matrix).argmax(0)
-            vec = words_matrix[arg_maxes, np.arange(len(arg_maxes))]
-            obj['vec'] = vec.tolist()
+            obj['vec'] = words_matrix[arg_maxes, np.arange(len(arg_maxes))]
             yield obj
 
 
@@ -149,5 +147,5 @@ class Word2VecInverse(PersistableStream):
         with open(self.reuse_name) as sr:
             for obj, line in zip(self.src_srs[0], sr):
                 vec = re.match(r'(\S+) (.+)', line).group(2)
-                obj['vec'] = list(map(float, vec.strip().split()))
+                obj['vec'] = np.fromiter(vec.strip().split(), float)
                 yield obj
