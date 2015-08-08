@@ -3,7 +3,7 @@ import os
 from json import JSONEncoder
 
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy import sparse
 
 __all__ = ['third_dir', 'obj_fullname', 'indexes_of', 'SciPyJSONEncoder', 'decode_scipy_object']
 
@@ -33,7 +33,7 @@ class SciPyJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return {'py/object': obj_fullname(obj), 'data': obj.tolist()}
-        elif isinstance(obj, coo_matrix):
+        elif isinstance(obj, sparse.coo_matrix):
             return {
                 'py/object': obj_fullname(obj), 'data': obj.data, 'row': obj.row, 'col': obj.col, 'shape': obj.shape
             }
@@ -45,6 +45,6 @@ def decode_scipy_object(obj):
     if obj_type == 'numpy.ndarray':
         return np.array(obj['data'])
     elif obj_type == 'scipy.sparse.coo.coo_matrix':
-        return coo_matrix((obj['data'], (obj['row'], obj['col'])), obj['shape'])
+        return sparse.coo_matrix((obj['data'], (obj['row'], obj['col'])), obj['shape'])
     else:
         return obj

@@ -1,4 +1,6 @@
 
+from scipy import sparse
+
 from senti.stream import PersistableStream
 
 __all__ = ['VecConcatTransform']
@@ -10,8 +12,5 @@ class VecConcatTransform(PersistableStream):
 
     def _iter(self):
         for objs in zip(*self.src_srs):
-            vec = []
-            for obj in objs:
-                vec.extend(obj['vec'])
-            obj['vec'] = vec
-            yield obj
+            objs[0]['vec'] = sparse.hstack(tuple(obj['vec'] for obj in objs))
+            yield objs[0]

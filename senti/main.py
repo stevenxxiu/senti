@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-
 import json
 import os
 
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy import sparse
 from sklearn.linear_model import LogisticRegression
 
 from senti.features import *
@@ -17,22 +16,17 @@ from senti.utils import indexes_of
 
 def feature_label_vecs(sr):
     # assume sparsity for safety
-    data = []
-    row_indices = []
-    col_indices = []
+    data, row, col = [], [], []
     labels = []
     for i, obj in enumerate(sr):
         vec = obj['vec']
-        if isinstance(vec, coo_matrix):
-            data.extend(vec.data)
-            col_indices.extend(vec.col)
-            row_indices.extend([i]*len(vec.data))
-        else:
-            data.extend(vec)
-            col_indices.extend(list(range(len(vec))))
-            row_indices.extend([i]*len(vec))
+        if not isinstance(vec, sparse.coo_matrix):
+            vec = sparse.coo_matrix(vec)
+        data.extend(vec.data)
+        col.extend(vec.col)
+        row.extend([i]*len(vec.data))
         labels.append(obj['label'])
-    return coo_matrix((data, (row_indices, col_indices))), labels
+    return sparse.coo_matrix((data, (row, col))), labels
 
 
 def main():
