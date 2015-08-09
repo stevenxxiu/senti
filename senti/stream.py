@@ -12,8 +12,9 @@ class Stream:
 
 
 class PersistableStream(Stream):
-    def __init__(self, name, src_srs=(), reuse=False, reuse_options=None):
+    def __init__(self, name, sr, src_srs=(), reuse=False, reuse_options=None):
         super().__init__(name)
+        self.sr = sr
         self.src_srs = src_srs
         self.reuse = reuse
         self.reuse_name = '{}.json'.format(name)
@@ -29,14 +30,11 @@ class PersistableStream(Stream):
                 return True
         return False
 
-    def _iter(self):
-        raise NotImplementedError
-
     def __iter__(self):
         if self.reuse:
             if not self.reusable():
                 with open(self.reuse_name, 'w') as sr:
-                    for obj in self._iter():
+                    for obj in self.sr:
                         sr.write(json.dumps(obj, cls=SciPyJSONEncoder) + '\n')
                 # only write options on success
                 with open(self.options_name, 'w') as sr:
@@ -45,7 +43,7 @@ class PersistableStream(Stream):
                 for line in sr:
                     yield json.loads(line, object_hook=decode_scipy_object)
         else:
-            yield from self._iter()
+            yield from self.sr
 
 
 class SourceStream(Stream):
