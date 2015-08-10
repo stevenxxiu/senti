@@ -1,64 +1,72 @@
 
-import jsonpickle
-from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.externals import joblib
-
-# XXX actually we can create some wrappers to individual classes and re-use Memory.cache, inputs can be specified via
-# XXX an input_id argument
+from abc import ABCMeta, abstractmethod
+from contextlib import suppress
 
 
-class PersistPipeline(Pipeline):
-    def get_params(self, deep=True, models=True):
-        params = super().get_params(deep=deep)
-        if not models:
-            params = dict((key, value) for key, value in params.items() if '__' in key)
-        return params
+class BaseEstimatorWrapper(metaclass=ABCMeta):
+    '''
+    Base class for estimator wappers that delegate get_params and attributes.
+    '''
 
-    def _step_params(self, params):
-        res = dict((step, {}) for step, _ in self.steps)
-        for pname, pval in params.items():
-            step, param = pname.split('__', 1)
-            res[step][param] = pval
+    @abstractmethod
+    def __init__(self, estimator):
+        self._setattr('_estimator', estimator)
+
+    def _setattr(self, attr, value):
+        super().__setattr__(attr, value)
+
+    def __getattr__(self, attr):
+        return getattr(self._estimator, attr)
+
+    def __setattr__(self, attr, value):
+        return setattr(self._estimator, attr, value)
+
+
+class CachedFitTransform(BaseEstimatorWrapper):
+    '''
+    Optional hashing of the data is used for fit & transform for speed. This means that the same data may be cached
+    multiple times on disk, given different hashes. But since the process of generating the data would likely be the
+    same each time and this is what we hash, this is unlikely.
+
+    Hash collisions are rare since joblib uses md5, so can be ignored.
+    '''
+
+    def __init__(self, estimator, memory, ignored_params=()):
+        super().__init__(estimator)
+        self._setattr('_fit_hash', None)
+        self._setattr('_transform_hash', None)
+        self._setattr('_cached_fit', memory.cache(self._cached_fit, ignore=['self', 'X_hash']))
+        self._setattr('_cached_fit_hash', memory.cache(self._cached_fit, ignore=['self', 'X']))
+        self._setattr('_cached_transform', memory.cache(self._cached_transform, ignore=['self', 'X_hash']))
+        self._setattr('_cached_transform_hash', memory.cache(self._cached_transform, ignore=['self', 'X']))
+        self._setattr('_memory', memory)
+        self._setattr('_ignored_params', ignored_params)
+
+    def _cached_fit(self, key_params, *args, X_hash=None, **kwargs):
+        self._estimator.fit(*args, **kwargs)
+        return self._estimator.__dict__
+
+    def fit(self, X, *args, X_hash=None, **kwargs):
+        ignored = {}
+        key_params = self._estimator.get_params(deep=True)
+        for param in self._ignored_params:
+            with suppress(KeyError):
+                ignored[param] = key_params.pop(param)
+        fit_func = self._cached_fit if X_hash is None else self._cached_fit_hash
+        self._estimator.__dict__, self._fit_hash, _ = \
+            fit_func._cached_call(key_params, X, *args, X_hash=X_hash, **kwargs)
+        if ignored:
+            self._estimator.set_params(**ignored)
+        return self
+
+    def _cached_transform(self, key_params, X, X_hash=None):
+        return self._estimator.transform(X)
+
+    def transform(self, X, X_hash=None):
+        transform_func = self._cached_transform if X_hash is None else self._cached_transform_hash
+        res, self._transform_hash, _ = transform_func._cached_call(self._fit_hash, X, X_hash=X_hash)
         return res
 
-    def _find_first_recalc_step(self, input_id, fit_params, prev_input_id, prev_params, prev_fit_params):
-        params = self._step_params(self.get_params(models=False))
-        fit_params = self._step_params(fit_params)
-        prev_params = self._step_params(prev_params)
-        prev_fit_params = self._step_params(prev_fit_params)
-        if input_id != prev_input_id:
-            return 0
-        for i, step in enumerate(self.steps):
-            if params[step[0]] != prev_params[step[0]] or fit_params[step[0]] != prev_fit_params[step[0]]:
-                return i
-        return len(self.steps)
-
-    def _pre_transform(self, X, y=None, **fit_params):
-        pass
-    
-    def fit(self, X, y=None, input_id=None, prev_input_id=None, prev_params=None, prev_fit_params=None, **fit_params):
-        first_fit = prev_params is None and prev_fit_params is None
-        if first_fit:
-            with open('fit.options.json') as sr:
-                obj = jsonpickle.decode(sr.read())
-                prev_input_id, prev_params, prev_fit_params = obj['input_id'], obj['params'], obj['fit_params']
-        i = self._find_first_recalc_step(input_id, prev_input_id, fit_params, prev_params, prev_fit_params)
-        if i != 0:
-            # load the latest model
-            self.steps[i - 1][1] = joblib.load('{}.joblib'.format(self.steps[i - 1][0]))
-        for step in self.steps[i:]:
-            # XXX store these models, ignore PersistFeatureUnion since it stores itself
-
-        if first_fit:
-            with open('fit.options.json', 'w') as sr:
-                sr.write(jsonpickle.encode({
-                    'input_id': input_id, 'params': self.get_params(models=False), 'fit_params': fit_params
-                }))
-
-    def transform(self, X, input_id=None, prev_input_id=None, prev_params=None):
-        # XXX more models need to be loaded if the input's different
-        pass
-
-
-class PersistFeatureUnion(FeatureUnion):
-    pass
+    def fit_transform(self, X, *args, X_hash=None, **kwargs):
+        # ignore the default fit_transform as using the cache is usually more efficient
+        return self.fit(X, *args, X_hash=X_hash, **kwargs).transform(X, X_hash=X_hash)
