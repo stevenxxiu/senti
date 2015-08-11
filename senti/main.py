@@ -4,64 +4,63 @@ import json
 import os
 
 import numpy as np
-from scipy import sparse
-from sklearn.linear_model import LogisticRegression
-
+from functional import compose
 from senti.features import *
+from senti.preprocess import *
 from senti.score import write_score
-from senti.stream import MergedStream, SourceStream, split_streams
-from senti.transforms import *
 from senti.utils import indexes_of
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import FeatureUnion, Pipeline
 
 
-def feature_label_vecs(sr):
-    # assume sparsity for safety
-    data, row, col = [], [], []
-    labels = []
-    for i, obj in enumerate(sr):
-        vec = obj['vec']
-        if not isinstance(vec, sparse.coo_matrix):
-            vec = sparse.coo_matrix(vec)
-        data.extend(vec.data)
-        col.extend(vec.col)
-        row.extend([i]*len(vec.data))
-        labels.append(obj['label'])
-    return sparse.coo_matrix((data, (row, col))), labels
+class FieldExtractor:
+    def __init__(self, sr, field):
+        self.sr = sr
+        self.field = field
+
+    def __iter__(self):
+        self.sr.seek(0)
+        for line in self.sr:
+            yield json.loads(line)[self.field]
 
 
 def main():
+    # fit & predict
     os.chdir('../data/twitter')
+    with open('train.json') as train_sr, open('test.json') as unsup_sr, open('dev.json') as dev_sr:
+        dev_docs = FieldExtractor(dev_sr, 'text')
+        pipeline = Pipeline([
+            ('features', FeatureUnion([
+                ('all_caps', AllCaps(normalize_urls, tokenize)),
+                ('w2v_doc', Word2VecDocs(
+                    compose(str.lower, normalize_urls), tokenize, dev_docs, FieldExtractor(unsup_sr, 'text'),
+                    dm=0, size=100, window=10, negative=5, hs=0, sample=1e-4, workers=8, iter=20, min_count=1
+                )),
+                # ('w2v_word_avg', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
+                # ('w2v_word_max', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
+                # ('w2v_word_inv', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
+            ])),
+            ('classifier', LogisticRegression())
+        ])
+        pipeline.fit(FieldExtractor(train_sr, 'text'), np.fromiter(FieldExtractor(train_sr, 'label'), int))
+        all_probs = pipeline.predict_proba(dev_docs)
+        classes = pipeline.steps[-1][1].classes_
 
-    # features
-    normed_sr = NormalizeTransform(MergedStream(list(map(SourceStream, ['train.json', 'dev.json', 'test.json']))))
-    all_caps_sr = AllCaps(normed_sr)
-    w2v_doc_sr = Word2VecDocs(LowerTransform(normed_sr), reuse=True)
-    w2v_word_avg_sr = Word2VecWordAverage(LowerTransform(normed_sr), reuse=True)
-    w2v_word_max_sr = Word2VecWordMax(LowerTransform(normed_sr), reuse=True)
-    w2v_word_inv_sr = Word2VecInverse(LowerTransform(normed_sr), reuse=True)
-    feature_sr = VecConcatTransform(w2v_doc_sr, all_caps_sr)
-    feature_srs = split_streams(feature_sr, list(map(SourceStream, ['train.json', 'dev.json', 'test.json'])))
-
-    # train
-    vecs, labels = feature_label_vecs(next(feature_srs))
-    model = LogisticRegression()
-    model.fit(vecs, labels)
-
-    # predict
-    vecs, gold_labels = feature_label_vecs(next(feature_srs))
-    all_probs = model.predict_proba(vecs)
+    # write predictions
     os.makedirs('predictions', exist_ok=True)
-    with open('predictions/{}.json'.format(feature_sr.name), 'w') as sr:
-        for src_obj, probs in zip(SourceStream('dev.json'), all_probs):
-            indexes = indexes_of(model.classes_, [0, 1, 2])
-            sr.write(json.dumps({
-                'id': src_obj['id'], 'label': int(model.classes_[np.argmax(probs)]),
+    with open('dev.json') as dev_sr, open('predictions/results.json', 'w') as results_sr:
+        for line, probs in zip(dev_sr, all_probs):
+            indexes = indexes_of(classes, [0, 1, 2])
+            results_sr.write(json.dumps({
+                'id': json.loads(line)['id'], 'label': int(classes[np.argmax(probs)]),
                 'prob_neg': probs[indexes[0]], 'prob_nt': probs[indexes[1]], 'prob_pos': probs[indexes[2]]
             }) + '\n')
 
     # write scores
     os.makedirs('scores', exist_ok=True)
-    write_score('scores/{}.pdf'.format(feature_sr.name), gold_labels, np.array(all_probs), model.classes_, (0, 2))
+    with open('dev.json') as sr:
+        gold_labels = np.fromiter(FieldExtractor(sr, 'label'), int)
+    write_score('scores/results.pdf', gold_labels, all_probs, classes, (0, 2))
 
 if __name__ == '__main__':
     main()

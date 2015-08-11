@@ -3,20 +3,16 @@ from collections import Counter
 
 import numpy as np
 
-from senti.transform import PersistentTransform
-
 __all__ = ['WordNGrams']
 
 
-class WordNGrams(PersistentTransform):
+class WordNGrams:
     def __init__(self, nmin=2, nmax=4, expand=True):
-        super().__init__('wordngrams', reuse_options=(nmin, nmax, expand))
         self.nmin = nmin
         self.nmax = nmax
         self.expand = expand
         self.counts = Counter()
 
-    @PersistentTransform.persist
     def fit(self, train_sr):
         for obj in train_sr:
             tokens = obj['tokens']
@@ -31,6 +27,5 @@ class WordNGrams(PersistentTransform):
                             self.counts[str(ngram)] += 1
         return self
 
-    @PersistentTransform.persist
     def transform(self, dev_sr):
         pass
