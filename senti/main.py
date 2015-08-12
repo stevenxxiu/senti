@@ -34,7 +34,7 @@ def main():
                 ('all_caps', AllCaps(normalize_urls, tokenize)),
                 ('w2v_doc', Word2VecDocs(
                     compose(str.lower, normalize_urls), tokenize, dev_docs, FieldExtractor(unsup_sr, 'text'),
-                    dm=0, size=100, window=10, negative=5, hs=0, sample=1e-4, workers=8, iter=20, min_count=1
+                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
                 )),
                 # ('w2v_word_avg', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
                 # ('w2v_word_max', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),

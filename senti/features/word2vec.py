@@ -1,18 +1,42 @@
 
+import os
+
+import numpy as np
 from sklearn.base import BaseEstimator
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
 __all__ = ['Word2VecDocs', 'Word2VecWordAverage', 'Word2VecWordMax', 'Word2VecInverse']
 
 
+class Word2Vec:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.X = None
+
+    def fit(self, docs):
+        with open('sentences.txt', 'w', encoding='utf-8') as sr:
+            for doc in docs:
+                sr.write('_*{} {}\n'.format(str(doc[1]), ' '.join(doc[0])))
+        os.system('../../third/word2vec/word2vec -train sentences.txt -output sentence_vecs.txt {}'.format(
+            ' '.join('-{} {}'.format(key.replace('_', '-'), val) for key, val in self.kwargs.items())
+        ))
+        print()
+        with open('sentence_vecs.txt', encoding='ISO-8859-1') as sr:
+            vecs = []
+            for line in sr:
+                if line.startswith('_*'):
+                    vecs.append(np.fromiter(line.split()[1:], float))
+            self.X = np.vstack(vecs)
+        return self
+
+
 class Word2VecDocs(BaseEstimator):
-    def __init__(self, preprocessor, tokenizer, dev_docs, unsup_docs=(), *args, **kwargs):
+    def __init__(self, preprocessor, tokenizer, dev_docs, unsup_docs=(), **kwargs):
         self.preprocessor = preprocessor
         self.tokenizer = tokenizer
         self.train_docs = ()
         self.unsup_docs = unsup_docs
         self.dev_docs = dev_docs
-        self.doc2vec = Doc2Vec(*args, **kwargs)
+        self.word2vec = Word2Vec(sentence_vectors=1, **kwargs)
         self._train_docs_end = 0
         self._unsup_docs_end = 0
         self._dev_docs_end = 0
@@ -20,29 +44,27 @@ class Word2VecDocs(BaseEstimator):
     def _all_docs(self):
         i = -1
         for i, doc in enumerate(self.train_docs):
-            yield TaggedDocument(self.tokenizer(self.preprocessor(doc)), (i,))
+            yield (self.tokenizer(self.preprocessor(doc)), i)
         self._train_docs_end = i + 1
         i = -1
         for i, doc in enumerate(self.unsup_docs):
-            yield TaggedDocument(self.tokenizer(self.preprocessor(doc)), (self._train_docs_end + i,))
+            yield (self.tokenizer(self.preprocessor(doc)), self._train_docs_end + i)
         self._unsup_docs_end = self._train_docs_end + i + 1
         i = -1
         for i, doc in enumerate(self.dev_docs):
-            yield TaggedDocument(self.tokenizer(self.preprocessor(doc)), (self._unsup_docs_end + i,))
+            yield (self.tokenizer(self.preprocessor(doc)), self._unsup_docs_end + i)
         self._dev_docs_end = self._unsup_docs_end + i + 1
 
     def fit(self, docs, y):
         self.train_docs = docs
-        all_docs = list(self._all_docs())
-        self.doc2vec.build_vocab(all_docs)
-        self.doc2vec.train(all_docs)
+        self.word2vec.fit(self._all_docs())
         return self
 
     def transform(self, docs):
         if docs == self.train_docs:
-            return self.doc2vec.docvecs[range(self._train_docs_end)]
+            return self.word2vec.X[range(self._train_docs_end)]
         elif docs == self.dev_docs:
-            return self.doc2vec.docvecs[range(self._unsup_docs_end, self._dev_docs_end)]
+            return self.word2vec.X[range(self._unsup_docs_end, self._dev_docs_end)]
         else:
             raise ValueError('docs were not fitted')
 
