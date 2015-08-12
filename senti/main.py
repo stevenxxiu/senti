@@ -4,24 +4,36 @@ import json
 import os
 
 import numpy as np
-from functional import compose
-from senti.features import *
-from senti.preprocess import *
-from senti.score import write_score
-from senti.utils import indexes_of
+from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
+
+from senti.features import *
+from senti.persist import CachedFitTransform
+from senti.preprocess import *
+from senti.score import write_score
+from senti.utils import Compose, indexes_of
 
 
 class FieldExtractor:
     def __init__(self, sr, field):
         self.sr = sr
         self.field = field
+        self.joblib_hash = sr.name
 
     def __iter__(self):
         self.sr.seek(0)
         for line in self.sr:
             yield json.loads(line)[self.field]
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['sr']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.sr = open(self.joblib_hash, encoding='utf-8')
 
 
 def main():
@@ -32,10 +44,10 @@ def main():
         pipeline = Pipeline([
             ('features', FeatureUnion([
                 ('all_caps', AllCaps(normalize_urls, tokenize)),
-                ('w2v_doc', Word2VecDocs(
-                    compose(str.lower, normalize_urls), tokenize, dev_docs, FieldExtractor(unsup_sr, 'text'),
+                ('w2v_doc', CachedFitTransform(Word2VecDocs(
+                    Compose(str.lower, normalize_urls), tokenize, dev_docs, FieldExtractor(unsup_sr, 'text'),
                     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
-                )),
+                ), Memory(cachedir='cache'))),
                 # ('w2v_word_avg', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
                 # ('w2v_word_max', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
                 # ('w2v_word_inv', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),

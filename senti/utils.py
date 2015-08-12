@@ -1,7 +1,22 @@
 
 import numpy as np
 
-__all__ = ['indexes_of']
+__all__ = ['Compose', 'indexes_of']
+
+
+class Compose:
+    '''
+    Picklable compose implementation.
+    '''
+
+    def __init__(self, *funcs):
+        self.funcs = funcs
+
+    def __call__(self, *args, **kwargs):
+        res = self.funcs[-1](*args, **kwargs)
+        for func in self.funcs[:-2]:
+            res = func(res)
+        return res
 
 
 def indexes_of(x, y):

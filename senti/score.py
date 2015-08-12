@@ -3,9 +3,10 @@ import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
-from senti.utils import indexes_of
 from sklearn import preprocessing
 from sklearn.metrics import accuracy_score, auc, precision_recall_fscore_support, roc_curve
+
+from senti.utils import indexes_of
 
 
 def write_score(name, gold_labels, pred_scores, classes, average_classes):

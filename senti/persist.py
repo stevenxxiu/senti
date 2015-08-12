@@ -20,42 +20,40 @@ class CachedFitTransform(ObjectProxy):
         self._self_cached_fit = memory.cache(self._cached_fit, ignore=['self', 'X_hash'])
         self._self_cached_fit_hash = memory.cache(self._cached_fit, ignore=['self', 'X'])
         self._self_cached_transform = memory.cache(self._cached_transform, ignore=['self', 'X_hash'])
+        self._self_cached_transform_hash = memory.cache(self._cached_transform, ignore=['self', 'X'])
         self._self_memory = memory
         self._self_ignored_params = ignored_params
 
-    def _cached_fit(self, key_params, X_hash, *args, **kwargs):
-        self._estimator.fit(*args, **kwargs)
-        return self._estimator.__dict__
+    @staticmethod
+    def _cached_call(func, *args, **kwargs):
+        # noinspection PyProtectedMember
+        return func._cached_call(args, kwargs)
+
+    def _cached_fit(self, key_params, X, X_hash, *args, **kwargs):
+        self.__wrapped__.fit(X, *args, **kwargs)
+        return self.__wrapped__.__dict__
 
     def fit(self, X, *args, **kwargs):
         ignored = {}
-        key_params = self._estimator.get_params(deep=True)
-        for param in self._ignored_params:
+        key_params = self.__wrapped__.get_params(deep=True)
+        for param in self._self_ignored_params:
             with suppress(KeyError):
                 ignored[param] = key_params.pop(param)
-        try:
-            X_hash = X._self_joblib_hash
-            fit_func = self._cached_fit
-        except AttributeError:
-            X_hash = None
-            fit_func = self._cached_fit_hash
-        self._estimator.__dict__, self._fit_hash, _ = \
-            fit_func._cached_call(key_params, X_hash, X, *args, **kwargs)
+        X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
+        fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
+        self.__wrapped__.__dict__, self._self_fit_hash, _ = \
+            self._cached_call(fit_func, key_params, X, X_hash, *args, **kwargs)
         if ignored:
-            self._estimator.set_params(**ignored)
+            self.__wrapped__.set_params(**ignored)
         return self
 
     def _cached_transform(self, fit_hash, X_hash, X):
-        return self._estimator.transform(X)
+        return self.__wrapped__.transform(X)
 
     def transform(self, X):
-        try:
-            X_hash = X.joblib_hash
-            transform_func = self._cached_transform
-        except AttributeError:
-            X_hash = None
-            transform_func = self._cached_transform_hash
-        res, res_hash, _ = transform_func._cached_call(self._fit_hash, X_hash, X)
+        X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
+        transform_func = self._self_cached_transform_hash if X_hash else self._self_cached_transform
+        res, res_hash, _ = self._cached_call(transform_func, self._self_fit_hash, X_hash, X)
         res = ObjectProxy(res)
         res._self_joblib_hash = res_hash
         return res
