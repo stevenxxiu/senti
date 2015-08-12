@@ -13,10 +13,10 @@ def write_score(name, gold_labels, pred_scores, classes, average_classes):
     gold_scores = preprocessing.label_binarize(gold_labels, classes)
     pred_labels = classes[np.argmax(pred_scores, axis=1)]
 
-    precision, recall, fscore, _ = precision_recall_fscore_support(pred_labels, gold_labels)
+    precision, recall, fscore, _ = precision_recall_fscore_support(gold_labels, pred_labels, labels=classes)
     for t in zip(classes, precision, recall, fscore):
         print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
-    print('Accuracy: ', accuracy_score(pred_labels, gold_labels))
+    print('Accuracy: ', accuracy_score(gold_labels, pred_labels))
     print('F1 average: ', np.mean(fscore[indexes_of(classes, average_classes)]))
 
     with PdfPages(name) as pdf:
