@@ -36,6 +36,16 @@ class FieldExtractor:
         self.sr = open(self.joblib_hash, encoding='utf-8')
 
 
+def get_pipeline_name(pipeline):
+    parts = []
+    for step in pipeline.steps[::-1]:
+        if isinstance(step[1], FeatureUnion):
+            parts.append('+'.join(transformer[0] for transformer in step[1].transformer_list))
+        else:
+            parts.append(step[0])
+    return ','.join(parts)
+
+
 def main():
     # fit & predict
     os.chdir('../data/twitter')
@@ -52,15 +62,17 @@ def main():
                 # ('w2v_word_max', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
                 # ('w2v_word_inv', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
             ])),
-            ('classifier', LogisticRegression())
+            ('logreg', LogisticRegression())
         ])
         pipeline.fit(FieldExtractor(train_sr, 'text'), np.fromiter(FieldExtractor(train_sr, 'label'), int))
         all_probs = pipeline.predict_proba(dev_docs)
-        classes = pipeline.steps[-1][1].classes_
+
+    classes = pipeline.steps[-1][1].classes_
+    pipeline_name = get_pipeline_name(pipeline)
 
     # write predictions
     os.makedirs('predictions', exist_ok=True)
-    with open('dev.json') as dev_sr, open('predictions/results.json', 'w') as results_sr:
+    with open('dev.json') as dev_sr, open('predictions/{}.json'.format(pipeline_name), 'w') as results_sr:
         for line, probs in zip(dev_sr, all_probs):
             indexes = indexes_of(classes, [0, 1, 2])
             results_sr.write(json.dumps({
@@ -72,7 +84,7 @@ def main():
     os.makedirs('scores', exist_ok=True)
     with open('dev.json') as sr:
         gold_labels = np.fromiter(FieldExtractor(sr, 'label'), int)
-    write_score('scores/results.pdf', gold_labels, all_probs, classes, (0, 2))
+    write_score('scores/{}.pdf'.format(pipeline_name), gold_labels, all_probs, classes, (0, 2))
 
 if __name__ == '__main__':
     main()
