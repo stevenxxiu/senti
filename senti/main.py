@@ -73,10 +73,11 @@ def main():
         pipeline = Pipeline([
             ('features', FeatureUnion([
                 ('all_caps', AllCaps(Compose(tokenize, normalize_urls))),
-                ('w2v_doc', CachedFitTransform(Doc2VecTransform(
-                    Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
-                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
-                ), memory)),
+                ('word_n_grams', WordNGrams(Compose(tokenize, str.lower, normalize_urls)), memory),
+                # ('w2v_doc', CachedFitTransform(Doc2VecTransform(
+                #     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                # ), memory)),
                 # ('w2v_word_avg', CachedFitTransform(Word2VecAverage(
                 #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
                 #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
