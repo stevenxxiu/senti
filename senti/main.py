@@ -15,16 +15,10 @@ from senti.score import write_score
 from senti.utils import Compose, indexes_of
 
 
-class FieldExtractor:
-    def __init__(self, sr, field):
+class PicklableSr:
+    def __init__(self, sr):
         self.sr = sr
-        self.field = field
         self.joblib_hash = sr.name
-
-    def __iter__(self):
-        self.sr.seek(0)
-        for line in self.sr:
-            yield json.loads(line)[self.field]
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -34,6 +28,28 @@ class FieldExtractor:
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.sr = open(self.joblib_hash, encoding='utf-8')
+
+
+class FieldExtractor(PicklableSr):
+    def __init__(self, sr, field):
+        super().__init__(sr)
+        self.field = field
+
+    def __iter__(self):
+        self.sr.seek(0)
+        for line in self.sr:
+            yield json.loads(line)[self.field]
+
+
+class HeadSr(PicklableSr):
+    def __init__(self, sr, n):
+        super().__init__(sr)
+        self.n = n
+
+    def __iter__(self):
+        self.sr.seek(0)
+        for i, line in zip(range(self.n), self.sr):
+            yield line
 
 
 def get_pipeline_name(pipeline):
@@ -49,22 +65,38 @@ def get_pipeline_name(pipeline):
 def main():
     # fit & predict
     os.chdir('../data/twitter')
-    with open('train.json') as train_sr, open('test.json') as unsup_sr, open('dev.json') as dev_sr:
+    with open('train.json') as train_sr, open('unsup.txt', encoding='utf-8') as unsup_sr, open('dev.json') as dev_sr:
+        train_docs = FieldExtractor(train_sr, 'text')
+        unsup_docs = HeadSr(unsup_sr, 10**6)
         dev_docs = FieldExtractor(dev_sr, 'text')
+        memory = Memory(cachedir='cache', verbose=0)
         pipeline = Pipeline([
             ('features', FeatureUnion([
-                ('all_caps', AllCaps(normalize_urls, tokenize)),
-                ('w2v_doc', CachedFitTransform(Word2VecDocs(
-                    Compose(str.lower, normalize_urls), tokenize, dev_docs, FieldExtractor(unsup_sr, 'text'),
+                ('all_caps', AllCaps(Compose(tokenize, normalize_urls))),
+                ('w2v_doc', CachedFitTransform(Doc2VecTransform(
+                    Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
                     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
-                ), Memory(cachedir='cache'))),
-                # ('w2v_word_avg', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
-                # ('w2v_word_max', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
-                # ('w2v_word_inv', Word2VecDocs(compose(str.lower, normalize_urls), tokenize)),
+                ), memory)),
+                # ('w2v_word_avg', CachedFitTransform(Word2VecAverage(
+                #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                # ), memory)),
+                # ('w2v_word_avg_google', CachedFitTransform(Word2VecAverage(
+                #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
+                #     pretrained_file='../google/GoogleNews-vectors-negative300.bin'
+                # ), memory)),
+                # ('w2v_word_max', CachedFitTransform(Word2VecMax(
+                #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                # ), memory)),
+                # ('w2v_word_inv', CachedFitTransform(Word2VecInverse(
+                #     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                # ), memory)),
             ])),
             ('logreg', LogisticRegression())
         ])
-        pipeline.fit(FieldExtractor(train_sr, 'text'), np.fromiter(FieldExtractor(train_sr, 'label'), int))
+        pipeline.fit(train_docs, np.fromiter(FieldExtractor(train_sr, 'label'), int))
         all_probs = pipeline.predict_proba(dev_docs)
 
     classes = pipeline.steps[-1][1].classes_
