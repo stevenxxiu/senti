@@ -152,9 +152,11 @@ class Word2VecInverse(BaseEstimator):
     Performs a document embedding.
     '''
 
-    def __init__(self, tokenizer, dev_docs, unsup_docs=(), **kwargs):
+    def __init__(self, tokenizer, dev_docs, unsup_docs=(), docs_min=10, docs_max=2000, **kwargs):
         self.tokenizer = tokenizer
         self.docs = {'train': (), 'unsup': unsup_docs, 'dev': dev_docs}
+        self.docs_min = docs_min
+        self.docs_max = docs_max
         self._docs_start = {}
         self._docs_end = {}
         self.word2vec = Word2Vec(**kwargs)
@@ -177,7 +179,7 @@ class Word2VecInverse(BaseEstimator):
             for word in words:
                 word_to_docs[word].add(str(i))
         # remove common & rare words
-        self.word2vec.fit((doc for doc in word_to_docs.values() if 10 <= len(doc) <= 2000))
+        self.word2vec.fit((doc for doc in word_to_docs.values() if self.docs_min <= len(doc) <= self.docs_max))
         return self
 
     def transform(self, docs):
