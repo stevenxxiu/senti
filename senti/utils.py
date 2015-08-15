@@ -14,7 +14,7 @@ class Compose:
 
     def __call__(self, *args, **kwargs):
         res = self.funcs[-1](*args, **kwargs)
-        for func in self.funcs[:-2]:
+        for func in self.funcs[1::-1]:
             res = func(res)
         return res
 
