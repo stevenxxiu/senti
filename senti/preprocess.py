@@ -9,5 +9,4 @@ def normalize_urls(text):
 
 
 def tokenize(text):
-    text = re.sub(r'([\.\",()!?;:])', r' \1 ', text)
-    return text.strip().split()
+    return re.findall(r'\w+|\$[\d\.]+|\S+', text)
