@@ -118,7 +118,7 @@ def main():
     os.makedirs('scores', exist_ok=True)
     with open('dev.json') as sr:
         gold_labels = np.fromiter(FieldExtractor(sr, 'label'), int)
-    write_score('scores/{}.pdf'.format(pipeline_name), gold_labels, all_probs, classes, (0, 2))
+    write_score('scores/{}'.format(pipeline_name), gold_labels, all_probs, classes, (0, 2))
 
 if __name__ == '__main__':
     main()

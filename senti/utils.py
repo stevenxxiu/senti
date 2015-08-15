@@ -1,7 +1,24 @@
 
+import sys
+
 import numpy as np
 
-__all__ = ['Compose', 'indexes_of']
+__all__ = ['Tee', 'Compose', 'indexes_of']
+
+
+class Tee(object):
+    def __init__(self, *args, **kwargs):
+        self.file = open(*args, **kwargs)
+        self.stdout = sys.stdout
+        sys.stdout = self
+
+    def write(self, data):
+        self.file.write(data)
+        self.stdout.write(data)
+
+    def close(self):
+        sys.stdout = self.stdout
+        self.file.close()
 
 
 class Compose:

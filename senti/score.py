@@ -1,25 +1,28 @@
 
 import matplotlib; matplotlib.use('Agg')
+from contextlib import closing
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from sklearn import preprocessing
 from sklearn.metrics import accuracy_score, auc, precision_recall_fscore_support, roc_curve
 
-from senti.utils import indexes_of
+from senti.utils import Tee, indexes_of
 
 
 def write_score(name, gold_labels, pred_scores, classes, average_classes):
     gold_scores = preprocessing.label_binarize(gold_labels, classes)
     pred_labels = classes[np.argmax(pred_scores, axis=1)]
 
-    precision, recall, fscore, _ = precision_recall_fscore_support(gold_labels, pred_labels, labels=classes)
-    for t in zip(classes, precision, recall, fscore):
-        print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
-    print('Accuracy: ', accuracy_score(gold_labels, pred_labels))
-    print('F1 average: ', np.mean(fscore[indexes_of(classes, average_classes)]))
+    with closing(Tee('{}.txt'.format(name), 'w')):
+        precision, recall, fscore, _ = precision_recall_fscore_support(gold_labels, pred_labels, labels=classes)
+        for t in zip(classes, precision, recall, fscore):
+            print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
+        print('Accuracy: ', accuracy_score(gold_labels, pred_labels))
+        print('F1 average: ', np.mean(fscore[indexes_of(classes, average_classes)]))
 
-    with PdfPages(name) as pdf:
+    with PdfPages('{}.pdf'.format(name)) as pdf:
         fpr = {}
         tpr = {}
         roc_auc = {}
