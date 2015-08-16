@@ -1,8 +1,9 @@
 
 import re
+from collections import Counter
+
 import numpy as np
 from sklearn.base import BaseEstimator
-from collections import Counter
 
 __all__ = ['Emoticons']
 
