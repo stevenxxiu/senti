@@ -79,11 +79,11 @@ def main():
                 # ('char_n_grams', CharNGrams(Compose(str.lower, normalize_urls), tokenize)),
                 ('w2v_doc', CachedFitTransform(Doc2VecTransform(
                     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
-                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 ), memory)),
                 # ('w2v_word_avg', CachedFitTransform(Word2VecAverage(
                 #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
-                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 # ), memory)),
                 # ('w2v_word_avg_google', CachedFitTransform(Word2VecAverage(
                 #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
@@ -91,11 +91,11 @@ def main():
                 # ), memory)),
                 # ('w2v_word_max', CachedFitTransform(Word2VecMax(
                 #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
-                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 # ), memory)),
                 # ('w2v_word_inv', CachedFitTransform(Word2VecInverse(
                 #     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
-                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 # ), memory)),
             ])),
             ('logreg', LogisticRegression())
