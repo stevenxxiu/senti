@@ -45,9 +45,6 @@ class Emoticons(BaseEstimator):
     Proportion of emoticons.
     '''
 
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-
     @staticmethod
     def assess_match(match):
         if match:
@@ -62,7 +59,7 @@ class Emoticons(BaseEstimator):
                 return UNHAPPY_SYMBOL
         return NEUTRAL_SYMBOL
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         return self
 
     def transform(self, docs):
@@ -70,7 +67,7 @@ class Emoticons(BaseEstimator):
         for doc in docs:
             counts = Counter()
             symbol = None
-            for token in self.tokenizer(doc):
+            for token in doc:
                 symbol = self.assess_match(emoticon_re.match(token))
                 counts[symbol] += 1
             vecs.append(np.array([

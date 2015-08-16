@@ -16,7 +16,7 @@ class NGramsBase(BaseEstimator):
     def _iter_ngrams(self, doc):
         raise NotImplementedError
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         ngrams = Counter()
         for doc in docs:
             for ngram in self._iter_ngrams(doc):
@@ -41,16 +41,14 @@ class NGramsBase(BaseEstimator):
 
 
 class WordNGrams(NGramsBase):
-    def __init__(self, tokenizer, n, exclude=True):
+    def __init__(self, n, exclude=True):
         super().__init__()
-        self.tokenizer = tokenizer
         self.n = n
         self.exclude = exclude
 
     def _iter_ngrams(self, doc):
-        tokens = self.tokenizer(doc)
-        for i in range(len(tokens) - self.n + 1):
-            ngram = tokens[i:i + self.n]
+        for i in range(len(doc) - self.n + 1):
+            ngram = doc[i:i + self.n]
             yield tuple(ngram)
             if self.exclude:
                 for j in range(1, self.n - 1):
@@ -60,17 +58,15 @@ class WordNGrams(NGramsBase):
 
 
 class CharNGrams(NGramsBase):
-    def __init__(self, preprocessor, tokenizer, n, tokens_only=False):
+    def __init__(self, n, tokens_only=False):
         super().__init__()
-        self.preprocessor = preprocessor
-        self.tokenizer = tokenizer
         self.n = n
         self.tokens_only = tokens_only
 
     def _iter_ngrams(self, doc):
-        doc = self.preprocessor(doc)
-        tokens = self.tokenizer(doc) if self.tokens_only else (doc,)
-        for token in tokens:
+        if not self.tokens_only:
+            doc = [' '.join(doc)]
+        for token in doc:
             for i in range(len(token) - self.n + 1):
                 ngram = token[i:i + self.n]
                 yield tuple(ngram)

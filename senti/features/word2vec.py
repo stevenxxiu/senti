@@ -80,8 +80,7 @@ class Doc2Vec(Word2VecBase):
 
 
 class Doc2VecTransform(BaseEstimator):
-    def __init__(self, tokenizer, dev_docs, unsup_docs=(), **kwargs):
-        self.tokenizer = tokenizer
+    def __init__(self, dev_docs, unsup_docs=(), **kwargs):
         self.docs = {'train': (), 'unsup': unsup_docs, 'dev': dev_docs}
         self._docs_start = {}
         self._docs_end = {}
@@ -93,11 +92,11 @@ class Doc2VecTransform(BaseEstimator):
             self._docs_start[name] = pos
             i = -1
             for i, doc in enumerate(self.docs[name]):
-                yield self.tokenizer(doc)
+                yield doc
             pos += i + 1
             self._docs_end[name] = pos
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         self.docs['train'] = docs
         self.word2vec.fit(self._all_docs())
         return self
@@ -110,17 +109,16 @@ class Doc2VecTransform(BaseEstimator):
 
 
 class Word2VecTransform(BaseEstimator):
-    def __init__(self, tokenizer, unsup_docs=(), pretrained_file=None, **kwargs):
-        self.tokenizer = tokenizer
+    def __init__(self, unsup_docs=(), pretrained_file=None, **kwargs):
         self.unsup_docs = unsup_docs
         self.word2vec = Word2Vec(**kwargs)
         self.pretrained = bool(pretrained_file)
         if pretrained_file:
             self.word2vec.load_binary(pretrained_file)
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         if not self.pretrained:
-            self.word2vec.fit(self.tokenizer(doc) for doc in itertools.chain(docs, self.unsup_docs))
+            self.word2vec.fit(itertools.chain(docs, self.unsup_docs))
 
 
 class Word2VecAverage(Word2VecTransform):
@@ -128,7 +126,7 @@ class Word2VecAverage(Word2VecTransform):
         vecs = []
         words, X = self.word2vec.words, self.word2vec.X
         for doc in docs:
-            vecs.append(np.mean(np.vstack(X[words[word]] for word in self.tokenizer(doc) if word in words), axis=0))
+            vecs.append(np.mean(np.vstack(X[words[word]] for word in doc if word in words), axis=0))
         return np.vstack(vecs)
 
 
@@ -141,7 +139,7 @@ class Word2VecMax(Word2VecTransform):
         vecs = []
         words, X = self.word2vec.words, self.word2vec.X
         for doc in docs:
-            words_matrix = np.vstack(X[words[word]] for word in self.tokenizer(doc) if word in words)
+            words_matrix = np.vstack(X[words[word]] for word in doc if word in words)
             arg_maxes = np.abs(words_matrix).argmax(0)
             vecs.append(words_matrix[arg_maxes, np.arange(len(arg_maxes))])
         return np.vstack(vecs)
@@ -152,8 +150,7 @@ class Word2VecInverse(BaseEstimator):
     Performs a document embedding.
     '''
 
-    def __init__(self, tokenizer, dev_docs, unsup_docs=(), docs_min=10, docs_max=2000, **kwargs):
-        self.tokenizer = tokenizer
+    def __init__(self, dev_docs, unsup_docs=(), docs_min=10, docs_max=2000, **kwargs):
         self.docs = {'train': (), 'unsup': unsup_docs, 'dev': dev_docs}
         self.docs_min = docs_min
         self.docs_max = docs_max
@@ -167,11 +164,11 @@ class Word2VecInverse(BaseEstimator):
             self._docs_start[name] = pos
             i = -1
             for i, doc in enumerate(self.docs[name]):
-                yield self.tokenizer(doc)
+                yield doc
             pos += i + 1
             self._docs_end[name] = pos
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         self.docs['train'] = docs
         # number documents using integers for easy sorting later
         word_to_docs = defaultdict(set)

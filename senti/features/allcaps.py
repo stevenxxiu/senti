@@ -10,15 +10,11 @@ class AllCaps(BaseEstimator):
     Proportion of tokens with fully capitalised letters.
     '''
 
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         return self
 
     def transform(self, docs):
         rows = []
         for doc in docs:
-            tokens = self.tokenizer(doc)
-            rows.append(sum(1 for token in tokens if token.isupper())/len(tokens))
+            rows.append(sum(1 for token in doc if token.isupper())/len(doc))
         return np.vstack(rows)

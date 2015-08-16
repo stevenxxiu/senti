@@ -12,9 +12,6 @@ class Elongations(BaseEstimator):
     Proportion of tokens with elongated letters.
     '''
 
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-
     @staticmethod
     def is_vowel(c):
         return c in 'aeiou'
@@ -35,17 +32,16 @@ class Elongations(BaseEstimator):
                 prevprev, prev = prev, char
         return False
 
-    def fit(self, docs, y):
+    def fit(self, docs, y=None):
         return self
 
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            tokens = self.tokenizer(doc)
             vec = np.array([
-                sum(self.is_elongated(t, self.is_vowel) for t in tokens),
-                sum(self.is_elongated(t, self.is_letter) for t in tokens),
-                sum(map(self.is_elongated, tokens)),
-            ])/len(tokens)
+                sum(self.is_elongated(t, self.is_vowel) for t in doc),
+                sum(self.is_elongated(t, self.is_letter) for t in doc),
+                sum(map(self.is_elongated, doc)),
+            ])/len(doc)
             vecs.append(vec)
         return np.vstack(vecs)

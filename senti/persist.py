@@ -3,6 +3,21 @@ from contextlib import suppress
 
 from wrapt import ObjectProxy
 
+__all__ = ['CachedFitTransform']
+
+
+class PicklableProxy(ObjectProxy):
+    def __init__(self, wrapped, attrs):
+        super().__init__(wrapped)
+        self._self_attrs = attrs
+
+    def __reduce__(self):
+        return type(self), (self.__wrapped__, self._self_attrs), tuple(getattr(self, attr) for attr in self._self_attrs)
+
+    def __setstate__(self, state):
+        for attr, value in zip(self._self_attrs, state):
+            setattr(self, attr, value)
+
 
 class CachedFitTransform(ObjectProxy):
     '''
@@ -54,7 +69,8 @@ class CachedFitTransform(ObjectProxy):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
         transform_func = self._self_cached_transform_hash if X_hash else self._self_cached_transform
         res, res_hash, _ = self._cached_call(transform_func, type(self.__wrapped__), self._self_fit_hash, X_hash, X)
-        res = ObjectProxy(res)
+        if not isinstance(res, PicklableProxy):
+            res = PicklableProxy(res, ['_self_joblib_hash'])
         res._self_joblib_hash = res_hash
         return res
 

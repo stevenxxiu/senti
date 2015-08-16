@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-__all__ = ['Tee', 'Compose', 'indexes_of']
+__all__ = ['Tee', 'indexes_of']
 
 
 class Tee(object):
@@ -19,21 +19,6 @@ class Tee(object):
     def close(self):
         sys.stdout = self.stdout
         self.file.close()
-
-
-class Compose:
-    '''
-    Picklable compose implementation.
-    '''
-
-    def __init__(self, *funcs):
-        self.funcs = funcs
-
-    def __call__(self, *args, **kwargs):
-        res = self.funcs[-1](*args, **kwargs)
-        for func in self.funcs[1::-1]:
-            res = func(res)
-        return res
 
 
 def indexes_of(x, y):
