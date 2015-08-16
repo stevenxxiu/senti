@@ -34,9 +34,9 @@ class Word2Vec(Word2VecBase):
         with open('sentence_vecs.txt', encoding='ISO-8859-1') as sr:
             vecs = []
             for i, line in enumerate(itertools.islice(sr, 1, None)):
-                parts = line.split()
+                parts = line.split(' ')
                 self.words[parts[0]] = i
-                vecs.append(np.fromiter(parts[1:], float))
+                vecs.append(np.fromiter(parts[1:-1], float))
             self.X = np.vstack(vecs)
         return self
 

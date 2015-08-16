@@ -18,7 +18,8 @@ from senti.utils import Compose, indexes_of
 class PicklableSr:
     def __init__(self, sr):
         self.sr = sr
-        self.joblib_hash = sr.name
+        self.name = sr.name
+        self.encoding = sr.encoding
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -27,7 +28,7 @@ class PicklableSr:
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self.sr = open(self.joblib_hash, encoding='utf-8')
+        self.sr = open(self.name, encoding=self.encoding)
 
 
 class FieldExtractor(PicklableSr):
@@ -65,7 +66,8 @@ def get_pipeline_name(pipeline):
 def main():
     # fit & predict
     os.chdir('../data/twitter')
-    with open('train.json') as train_sr, open('unsup.txt', encoding='utf-8') as unsup_sr, open('dev.json') as dev_sr:
+    with open('train.json') as train_sr, open('unsup.txt', encoding='ISO-8859-2') as unsup_sr, \
+            open('dev.json') as dev_sr:
         train_docs = FieldExtractor(train_sr, 'text')
         unsup_docs = HeadSr(unsup_sr, 10**6)
         dev_docs = FieldExtractor(dev_sr, 'text')
@@ -73,12 +75,12 @@ def main():
         pipeline = Pipeline([
             ('features', FeatureUnion([
                 ('all_caps', AllCaps(Compose(tokenize, normalize_urls))),
-                ('word_n_grams', WordNGrams(Compose(tokenize, str.lower, normalize_urls))),
-                ('char_n_grams', CharNGrams(Compose(str.lower, normalize_urls), tokenize)),
-                # ('w2v_doc', CachedFitTransform(Doc2VecTransform(
-                #     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
-                #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
-                # ), memory)),
+                # ('word_n_grams', WordNGrams(Compose(tokenize, str.lower, normalize_urls))),
+                # ('char_n_grams', CharNGrams(Compose(str.lower, normalize_urls), tokenize)),
+                ('w2v_doc', CachedFitTransform(Doc2VecTransform(
+                    Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
+                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
+                ), memory)),
                 # ('w2v_word_avg', CachedFitTransform(Word2VecAverage(
                 #     Compose(tokenize, str.lower, normalize_urls), unsup_docs,
                 #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=8, iter=20, min_count=1
