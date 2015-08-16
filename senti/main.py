@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
+from sklearn.preprocessing import Binarizer, Normalizer
 
 from senti.features import *
 from senti.persist import CachedFitTransform
@@ -74,8 +75,14 @@ def main():
         memory = Memory(cachedir='cache', verbose=0)
         pipeline = Pipeline([
             ('features', FeatureUnion([
-                ('word_n_grams', WordNGrams(Compose(tokenize, str.lower, normalize_urls))),
-                ('char_n_grams', CharNGrams(Compose(str.lower, normalize_urls), tokenize)),
+                ('word_n_grams', FeatureUnion([(n, Pipeline([
+                    ('ngrams', WordNGrams(Compose(tokenize, str.lower, normalize_urls), n)),
+                    # ('binarizer', Binarizer()),
+                ])) for n in range(3, 5 + 1)])),
+                ('char_n_grams', FeatureUnion([(n, Pipeline([
+                    ('ngrams', CharNGrams(Compose(str.lower, normalize_urls), tokenize, n)),
+                    # ('normalizer', Normalizer('l1')),
+                ])) for n in range(2, 4 + 1)])),
                 ('all_caps', AllCaps(Compose(tokenize, normalize_urls))),
                 ('punctuations', Punctuations(Compose(tokenize, normalize_urls))),
                 ('elongations', Elongations(Compose(tokenize, str.lower, normalize_urls))),

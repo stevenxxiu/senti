@@ -37,45 +37,40 @@ class NGramsBase(BaseEstimator):
                     row.append(i)
                     col.append(self.ngrams[ngram])
                     data.append(self.counts[col[-1]])
-        return sparse.coo_matrix((data, (row, col)), shape=(i + 1, self.counts.shape[0]))
+        return sparse.coo_matrix((data, (row, col)), shape=(i + 1, self.counts.shape[0]), dtype=np.float64)
 
 
 class WordNGrams(NGramsBase):
-    def __init__(self, tokenizer, n_min=2, n_max=4, exclude=True):
+    def __init__(self, tokenizer, n, exclude=True):
         super().__init__()
         self.tokenizer = tokenizer
-        self.n_min = n_min
-        self.n_max = n_max
+        self.n = n
         self.exclude = exclude
 
     def _iter_ngrams(self, doc):
         tokens = self.tokenizer(doc)
-        for n in range(self.n_min, self.n_max + 1):
-            for i in range(len(tokens) - n + 1):
-                ngram = tokens[i:i + n]
-                yield tuple(ngram)
-                if self.exclude:
-                    for j in range(1, n - 1):
-                        excluded = list(ngram)
-                        excluded[j] = None
-                        yield tuple(excluded)
+        for i in range(len(tokens) - self.n + 1):
+            ngram = tokens[i:i + self.n]
+            yield tuple(ngram)
+            if self.exclude:
+                for j in range(1, self.n - 1):
+                    excluded = list(ngram)
+                    excluded[j] = None
+                    yield tuple(excluded)
 
 
 class CharNGrams(NGramsBase):
-    def __init__(self, preprocessor, tokenizer, n_min=3, n_max=5, tokens_only=False, exclude=True):
+    def __init__(self, preprocessor, tokenizer, n, tokens_only=False):
         super().__init__()
         self.preprocessor = preprocessor
         self.tokenizer = tokenizer
-        self.n_min = n_min
-        self.n_max = n_max
+        self.n = n
         self.tokens_only = tokens_only
-        self.exclude = exclude
 
     def _iter_ngrams(self, doc):
         doc = self.preprocessor(doc)
         tokens = self.tokenizer(doc) if self.tokens_only else (doc,)
         for token in tokens:
-            for n in range(self.n_min, self.n_max + 1):
-                for i in range(len(token) - n + 1):
-                    ngram = token[i:i + n]
-                    yield tuple(ngram)
+            for i in range(len(token) - self.n + 1):
+                ngram = token[i:i + self.n]
+                yield tuple(ngram)

@@ -36,7 +36,7 @@ class Word2Vec(Word2VecBase):
             for i, line in enumerate(itertools.islice(sr, 1, None)):
                 parts = line.split(' ')
                 self.words[parts[0]] = i
-                vecs.append(np.fromiter(parts[1:-1], float))
+                vecs.append(np.fromiter(parts[1:-1], np.float64))
             self.X = np.vstack(vecs)
         return self
 
@@ -44,7 +44,7 @@ class Word2Vec(Word2VecBase):
         with open(name, 'rb') as sr:
             header = sr.readline()
             vocab_size, layer1_size = tuple(map(int, header.split()))
-            binary_len = np.dtype('float32').itemsize*layer1_size
+            binary_len = np.float32().itemsize*layer1_size
             vecs = []
             for i in range(vocab_size):
                 word = bytearray()
@@ -56,7 +56,7 @@ class Word2Vec(Word2VecBase):
                         # ignore newlines in front of words (some binary files have them)
                         word.append(ch[0])
                 self.words[word.decode('utf-8')] = i
-                vecs.append(np.frombuffer(sr.read(binary_len), dtype='float32'))
+                vecs.append(np.frombuffer(sr.read(binary_len), dtype=np.float32))
             self.X = np.vstack(vecs)
 
 
@@ -74,7 +74,7 @@ class Doc2Vec(Word2VecBase):
             vecs = []
             for line in itertools.islice(sr, 1, None):
                 if line.startswith('_*'):
-                    vecs.append(np.fromiter(line.split()[1:], float))
+                    vecs.append(np.fromiter(line.split()[1:], np.float64))
             self.X = np.vstack(vecs)
         return self
 
