@@ -2,10 +2,10 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['Punctuation']
+__all__ = ['Punctuations']
 
 
-class Punctuation(BaseEstimator):
+class Punctuations(BaseEstimator):
     '''
     Proportion of tokens with punctuation marks.
     '''
@@ -22,10 +22,10 @@ class Punctuation(BaseEstimator):
             tokens = self.tokenizer(doc)
             charsets = tuple(frozenset(t) for t in tokens if t)
             vec = np.array([
-                sum(chars == {'!'} for chars in charsets),
-                sum(chars == {'?'} for chars in charsets),
-                sum(chars == {'!', '?'} for chars in charsets),
+                sum(chars == {'!'} for chars in charsets)/len(tokens),
+                sum(chars == {'?'} for chars in charsets)/len(tokens),
+                sum(chars == {'!', '?'} for chars in charsets)/len(tokens),
                 int(bool(charsets[-1] <= {'!', '?'}))
-            ])/len(tokens)
+            ])
             vecs.append(vec)
         return np.vstack(vecs)

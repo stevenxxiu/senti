@@ -77,7 +77,9 @@ def main():
                 ('word_n_grams', WordNGrams(Compose(tokenize, str.lower, normalize_urls))),
                 ('char_n_grams', CharNGrams(Compose(str.lower, normalize_urls), tokenize)),
                 ('all_caps', AllCaps(Compose(tokenize, normalize_urls))),
-                ('punctuation', Punctuation(Compose(tokenize, str.lower, normalize_urls))),
+                ('punctuations', Punctuations(Compose(tokenize, normalize_urls))),
+                ('elongations', Elongations(Compose(tokenize, str.lower, normalize_urls))),
+                ('emoticons', Emoticons(Compose(tokenize, normalize_urls))),
                 # ('w2v_doc', CachedFitTransform(Doc2VecTransform(
                 #     Compose(tokenize, str.lower, normalize_urls), dev_docs, unsup_docs,
                 #     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
