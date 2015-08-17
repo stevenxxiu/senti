@@ -64,10 +64,15 @@ def get_pipeline_name(pipeline):
         raise ValueError
     parts = []
     for step in steps:
-        parts.append(
-            '{}({})'.format(step[0] if step[0] != 'features' else '', get_pipeline_name(step[1]))
-            if isinstance(step[1], (Pipeline, FeatureUnion)) and isinstance(step[0], str) else step[0]
-        )
+        if isinstance(step[0], str):
+            part = ''
+            if step[0] != 'features':
+                part += step[0]
+            if isinstance(step[1], (Pipeline, FeatureUnion)):
+                name = get_pipeline_name(step[1])
+                if name:
+                    part += '({})'.format(name)
+            parts.append(part)
     return ','.join(parts)
 
 
