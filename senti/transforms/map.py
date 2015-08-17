@@ -14,10 +14,9 @@ class ReusableMap:
 
     def __iter__(self):
         for doc in self.docs:
-            res = self.funcs[-1](doc)
-            for func in self.funcs[1::-1]:
-                res = func(res)
-            yield res
+            for func in self.funcs[::-1]:
+                doc = func(doc)
+            yield doc
 
 
 class MapTransform(BaseEstimator):
