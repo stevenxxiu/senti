@@ -4,47 +4,10 @@ import json
 import os
 
 import numpy as np
-from senti.score import write_score
-from senti.utils import indexes_of
+
 from senti.pipeline import *
-
-
-class PicklableSr:
-    def __init__(self, sr):
-        self.sr = sr
-        self.name = sr.name
-        self.encoding = sr.encoding
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['sr']
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.sr = open(self.name, encoding=self.encoding)
-
-
-class FieldExtractor(PicklableSr):
-    def __init__(self, sr, field):
-        super().__init__(sr)
-        self.field = field
-
-    def __iter__(self):
-        self.sr.seek(0)
-        for line in self.sr:
-            yield json.loads(line)[self.field]
-
-
-class HeadSr(PicklableSr):
-    def __init__(self, sr, n):
-        super().__init__(sr)
-        self.n = n
-
-    def __iter__(self):
-        self.sr.seek(0)
-        for i, line in zip(range(self.n), self.sr):
-            yield line
+from senti.score import *
+from senti.utils import *
 
 
 def main():
@@ -54,14 +17,15 @@ def main():
             open('dev.json') as dev_sr:
         train_docs = FieldExtractor(train_sr, 'text')
         unsup_docs = HeadSr(unsup_sr, 10**6)
+        unsup_docs_inv = HeadSr(unsup_sr, 10**5)
         dev_docs = FieldExtractor(dev_sr, 'text')
-        pipeline = get_ensemble_pipeline(dev_docs, unsup_docs)
-        # pipeline = get_logreg_pipeline()
+        features = get_features(dev_docs, unsup_docs, unsup_docs_inv)
+        pipeline_name, pipeline = get_voting_pipeline(features)
+        # pipeline_name, pipeline = get_logreg_pipeline(features)
         pipeline.fit(train_docs, np.fromiter(FieldExtractor(train_sr, 'label'), int))
         all_probs = pipeline.predict_proba(dev_docs)
 
-    classes = pipeline.steps[-1][1].classes_
-    pipeline_name = get_pipeline_name(pipeline)
+    classes = pipeline.classes_
     os.makedirs('results', exist_ok=True)
 
     # write predictions

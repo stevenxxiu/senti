@@ -3,6 +3,8 @@ import re
 
 from sklearn.base import BaseEstimator
 
+from senti.transforms.base import ReiterableMixin
+
 __all__ = ['Negations']
 
 # Note that Potts didn't included the comma in the definition, but his examples assume it terminates a context.
@@ -12,7 +14,7 @@ NEGATION_RE = re.compile(r'''(?:
 )|n't''', re.X | re.I | re.U)
 
 
-class Negations(BaseEstimator):
+class Negations(BaseEstimator, ReiterableMixin):
     '''
     Appends '_NEG' to tokens in negated contexts.
     '''
@@ -28,7 +30,7 @@ class Negations(BaseEstimator):
     def fit(self, docs, y=None):
         return self
 
-    def transform(self, docs):
+    def _transform(self, docs):
         for doc in docs:
             negated = False
             for i, token in enumerate(doc):
