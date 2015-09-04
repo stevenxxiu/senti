@@ -33,30 +33,30 @@ def get_features(dev_docs, unsup_docs, unsup_docs_inv):
             # ('normalizer', Normalizer('l1')),
         ])) for n in range(2, 4 + 1)])),
         ('elongations', Pipeline([('tokenizer', case_insense), ('feature', Elongations())])),
-        ('w2v_doc', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Doc2VecTransform(
-            case_insense.transform(dev_docs), case_insense.transform(unsup_docs), cbow=0,
-            size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-        ), memory))])),
+        # ('w2v_doc', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Doc2VecTransform(
+        #     case_insense.transform(dev_docs), case_insense.transform(unsup_docs), cbow=0,
+        #     size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+        # ), memory))])),
         ('w2v_word_avg', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecAverage(
             case_insense.transform(unsup_docs), cbow=0,
             size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
         ), memory))])),
-        ('w2v_word_avg_google', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecAverage(
-            pretrained_file='../google/GoogleNews-vectors-negative300.bin'
-        ), memory))])),
-        ('w2v_word_max', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecMax(
-            case_insense.transform(unsup_docs), cbow=0,
-            size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-        ), memory))])),
-        ('w2v_word_inv', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecInverse(
-            case_insense.transform(dev_docs), case_insense.transform(unsup_docs_inv), cbow=0,
-            size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-        ), memory))])),
+        # ('w2v_word_avg_google', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecAverage(
+        #     pretrained_file='../google/GoogleNews-vectors-negative300.bin'
+        # ), memory))])),
+        # ('w2v_word_max', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecMax(
+        #     case_insense.transform(unsup_docs), cbow=0,
+        #     size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+        # ), memory))])),
+        # ('w2v_word_inv', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecInverse(
+        #     case_insense.transform(dev_docs), case_insense.transform(unsup_docs_inv), cbow=0,
+        #     size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+        # ), memory))])),
     ]
 
 
 def get_voting_pipeline(features):
-    return 'ensemble_logreg_({})'.format(','.join(name for name, estimator in features)), VotingClassifier(list(
+    return 'ensemble_logreg({})'.format(','.join(name for name, estimator in features)), VotingClassifier(list(
         (name, Pipeline([('feature', estimator), ('logreg', LogisticRegression())]))
         for name, estimator in features
     ), voting='soft')
