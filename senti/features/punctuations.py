@@ -13,7 +13,8 @@ class Punctuations(BaseEstimator):
     def fit(self, docs, y=None):
         return self
 
-    def transform(self, docs):
+    @staticmethod
+    def transform(docs):
         vecs = []
         for doc in docs:
             charsets = tuple(frozenset(token) for token in doc if token)
