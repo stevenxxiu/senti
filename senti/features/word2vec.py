@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['Doc2VecTransform', 'Word2VecAverage', 'Word2VecMax', 'Word2VecInverse']
+__all__ = ['Word2Vec', 'Doc2Vec', 'Doc2VecTransform', 'Word2VecAverage', 'Word2VecMax', 'Word2VecInverse']
 
 
 class Word2VecBase:
