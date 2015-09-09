@@ -6,3 +6,4 @@ from senti.features.negations import *
 from senti.features.ngrams import *
 from senti.features.punctuations import *
 from senti.features.word2vec import *
+from senti.features.indexes import *

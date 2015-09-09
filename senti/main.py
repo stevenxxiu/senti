@@ -19,9 +19,13 @@ def main():
         unsup_docs = HeadSr(unsup_sr, 10**6)
         unsup_docs_inv = HeadSr(unsup_sr, 10**5)
         dev_docs = FieldExtractor(dev_sr, 'text')
-        features = get_features(dev_docs, unsup_docs, unsup_docs_inv)
-        # pipeline_name, pipeline = get_voting_pipeline(features)
-        pipeline_name, pipeline = get_logreg_pipeline(features)
+        # pipeline_name, pipeline = get_voting_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
+        # pipeline_name, pipeline = get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
+        pipeline_name, pipeline = get_cnn_pipeline(train_docs, dev_docs, False)
+
+        # XXX temporary
+        pipeline._final_estimator.test_y = np.fromiter(FieldExtractor(dev_sr, 'label'), int)
+
         pipeline.fit(train_docs, np.fromiter(FieldExtractor(train_sr, 'label'), int))
         all_probs = pipeline.predict_proba(dev_docs)
 

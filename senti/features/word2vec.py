@@ -23,7 +23,7 @@ class Word2VecBase:
 class Word2Vec(Word2VecBase):
     def __init__(self, **kwargs):
         super().__init__(sentence_vectors=0, **kwargs)
-        self.words = {}
+        self.word_to_index = {}
         self.X = None
 
     def fit(self, docs):
@@ -35,7 +35,7 @@ class Word2Vec(Word2VecBase):
             vecs = []
             for i, line in enumerate(itertools.islice(sr, 1, None)):
                 parts = line.split(' ')
-                self.words[parts[0]] = i
+                self.word_to_index[parts[0]] = i
                 vecs.append(np.fromiter(parts[1:-1], np.float64))
             self.X = np.vstack(vecs)
         return self
@@ -55,7 +55,7 @@ class Word2Vec(Word2VecBase):
                     if ch != b'\n':
                         # ignore newlines in front of words (some binary files have them)
                         word.append(ch[0])
-                self.words[word.decode('utf-8')] = i
+                self.word_to_index[word.decode('utf-8')] = i
                 vecs.append(np.frombuffer(sr.read(binary_len), dtype=np.float32))
             self.X = np.vstack(vecs)
 
@@ -124,7 +124,7 @@ class Word2VecTransform(BaseEstimator):
 class Word2VecAverage(Word2VecTransform):
     def transform(self, docs):
         vecs = []
-        words, X = self.word2vec.words, self.word2vec.X
+        words, X = self.word2vec.word_to_index, self.word2vec.X
         for doc in docs:
             vecs.append(np.mean(np.vstack(X[words[word]] for word in doc if word in words), axis=0))
         return np.vstack(vecs)
@@ -137,7 +137,7 @@ class Word2VecMax(Word2VecTransform):
 
     def transform(self, docs):
         vecs = []
-        words, X = self.word2vec.words, self.word2vec.X
+        words, X = self.word2vec.word_to_index, self.word2vec.X
         for doc in docs:
             words_matrix = np.vstack(X[words[word]] for word in doc if word in words)
             arg_maxes = np.abs(words_matrix).argmax(0)
@@ -183,6 +183,6 @@ class Word2VecInverse(BaseEstimator):
         for name in ('train', 'dev'):
             if docs == self.docs[name]:
                 return self.word2vec.X[list(
-                    self.word2vec.words[str(i)] for i in range(self._docs_start[name], self._docs_end[name])
+                    self.word2vec.word_to_index[str(i)] for i in range(self._docs_start[name], self._docs_end[name])
                 )]
         raise ValueError('docs were not fitted')
