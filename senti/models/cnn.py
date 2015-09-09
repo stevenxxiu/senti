@@ -11,8 +11,8 @@ __all__ = ['ConvNet']
 
 class ConvNet(BaseEstimator):
     def __init__(
-        self, word_vecs, img_w, filter_hs, hidden_units, dropout_rate, shuffle_batch=True, n_epochs=25, batch_size=50,
-        lr_decay=0.95, conv_non_linear='relu', activations=(iden,), sqr_norm_lim=9, non_static=True
+        self, word_vecs, img_w, filter_hs, hidden_units, dropout_rate, conv_non_linear, activations, non_static,
+        shuffle_batch, n_epochs, batch_size, lr_decay, sqr_norm_lim
     ):
         '''
         Train a simple conv net
