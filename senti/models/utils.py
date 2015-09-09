@@ -432,7 +432,7 @@ def sgd_updates_adadelta(params, cost, rho=0.95, epsilon=1e-6, norm_lim=9):
         step = -(T.sqrt(exp_su + epsilon)/T.sqrt(up_exp_sg + epsilon))*gp
         updates[exp_su] = rho*exp_su + (1 - rho)*T.sqr(step)
         stepped_param = param + step
-        if param.get_value(borrow=True).ndim == 2 and param.name != 'Words':
+        if param.get_value(borrow=True).ndim == 2 and param.name != 'words':
             # this scales the filter updates to the desired column norm, is it really necessary?
             # also, it makes more sense to scale the filter instead of the update
             col_norms = T.sqrt(T.sum(T.sqr(stepped_param), axis=0))

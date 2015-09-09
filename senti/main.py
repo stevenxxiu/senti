@@ -22,10 +22,6 @@ def main():
         # pipeline_name, pipeline = get_voting_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
         # pipeline_name, pipeline = get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
         pipeline_name, pipeline = get_cnn_pipeline(train_docs, dev_docs, False)
-
-        # XXX temporary
-        pipeline._final_estimator.test_y = np.fromiter(FieldExtractor(dev_sr, 'label'), int)
-
         pipeline.fit(train_docs, np.fromiter(FieldExtractor(train_sr, 'label'), int))
         all_probs = pipeline.predict_proba(dev_docs)
 

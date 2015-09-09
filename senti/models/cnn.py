@@ -11,172 +11,136 @@ __all__ = ['ConvNet']
 
 class ConvNet(BaseEstimator):
     def __init__(
-        self, word_vecs, img_w, filter_hs, hidden_units, dropout_rate, conv_non_linear, activations, non_static,
+        self, word_vecs, img_w, img_h, filter_hs, hidden_units, dropout_rate, conv_non_linear, activations, non_static,
         shuffle_batch, n_epochs, batch_size, lr_decay, sqr_norm_lim
     ):
         '''
-        Train a simple conv net
-        img_h = sentence length (padded where necessary)
-        img_w = word vector length (300 for word2vec)
-        filter_hs = filter window sizes
-        hidden_units = [x,y] x is the number of feature maps (per filter window), and y is the penultimate layer
-        sqr_norm_lim = s^2 in the paper
-        lr_decay = adadelta decay parameter
+        args:
+            img_w: word vector length (300 for word2vec)
+            img_h: sentence length (padded where necessary)
+            filter_hs: filter window sizes
+            hidden_units: [x, y] x is the number of feature maps (per filter window), and y is the penultimate layer
+            sqr_norm_lim: s^2 in the paper
+            lr_decay: adadelta decay parameter
         '''
-        self.word_vecs = word_vecs
         self.img_w = img_w
-        self.filter_hs = filter_hs
-        self.hidden_units = hidden_units
-        self.dropout_rate = dropout_rate
+        self.img_h = img_h
+        self.batch_size = batch_size
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs
-        self.batch_size = batch_size
-        self.lr_decay = lr_decay
-        self.conv_non_linear = conv_non_linear
-        self.activations = activations
-        self.sqr_norm_lim = sqr_norm_lim
-        self.non_static = non_static
-
-        # XXX temporary, separate out train & predict
-        self.train_X = None
-        self.train_y = None
-        self.test_y = None
-
-    def fit(self, X, y):
-        self.train_X = X
-        self.train_y = y
-        return self
-
-    def predict(self, X):
-        # XXX separate out train & predict
-        pass
-
-    def predict_proba(self, X):
-        # XXX separate out train & predict
-        datasets = (np.hstack([self.train_X, self.train_y.reshape((-1, 1))]), np.hstack([X, self.test_y.reshape((-1, 1))]))
         rng = np.random.RandomState(3435)
-        # XXX for now, make datasets the original
-        img_h = len(datasets[0][0]) - 1
-        filter_w = self.img_w
-        feature_maps = self.hidden_units[0]
+        filter_w = img_w
+        feature_maps = hidden_units[0]
         filter_shapes = []
         pool_sizes = []
-        for filter_h in self.filter_hs:
+        for filter_h in filter_hs:
             filter_shapes.append((feature_maps, 1, filter_h, filter_w))
-            pool_sizes.append((img_h - filter_h + 1, self.img_w - filter_w + 1))
-
-        # define model architecture
-        index = T.lscalar()
-        x = T.matrix('x')
-        y = T.ivector('y')
-        Words = theano.shared(value=self.word_vecs, name="Words")
-        zero_vec_tensor = T.vector()
-        zero_vec = np.zeros(self.img_w)
-        set_zero = theano.function([zero_vec_tensor], updates=[(Words, T.set_subtensor(Words[0,:], zero_vec_tensor))])
-        layer0_input = Words[T.cast(x.flatten(), dtype="int32")].reshape((x.shape[0], 1, x.shape[1], Words.shape[1]))
-        conv_layers = []
+            pool_sizes.append((img_h - filter_h + 1, img_w - filter_w + 1))
+        self.x = T.matrix('x')
+        self.y = T.ivector('y')
+        self.words = theano.shared(value=word_vecs, name='words')
+        layer0_input = self.words[T.cast(self.x.flatten(), dtype='int32')] \
+            .reshape((self.x.shape[0], 1, self.x.shape[1], self.words.shape[1]))
+        self.conv_layers = []
         layer1_inputs = []
-        for i in range(len(self.filter_hs)):
+        for i in range(len(filter_hs)):
             filter_shape = filter_shapes[i]
             pool_size = pool_sizes[i]
             conv_layer = LeNetConvPoolLayer(
-                rng, input=layer0_input, image_shape=(self.batch_size, 1, img_h, self.img_w), filter_shape=filter_shape,
-                poolsize=pool_size, non_linear=self.conv_non_linear
+                rng, input=layer0_input, image_shape=(batch_size, 1, img_h, img_w), filter_shape=filter_shape,
+                poolsize=pool_size, non_linear=conv_non_linear
             )
             layer1_input = conv_layer.output.flatten(2)
-            conv_layers.append(conv_layer)
+            self.conv_layers.append(conv_layer)
             layer1_inputs.append(layer1_input)
         layer1_input = T.concatenate(layer1_inputs, 1)
-        self.hidden_units[0] = feature_maps*len(self.filter_hs)
-        classifier = MLPDropout(
-            rng, input=layer1_input, layer_sizes=self.hidden_units, activations=self.activations,
-            dropout_rates=self.dropout_rate
+        hidden_units[0] = feature_maps*len(filter_hs)
+        self.classifier = MLPDropout(
+            rng, input=layer1_input, layer_sizes=hidden_units, activations=activations, dropout_rates=dropout_rate
+        )
+        # define parameters of the model and update functions using adadelta
+        params = self.classifier.params
+        for conv_layer in self.conv_layers:
+            params += conv_layer.params
+        if non_static:
+            # if word vectors are allowed to change, add them as model parameters
+            params += [self.words]
+        dropout_cost = self.classifier.dropout_negative_log_likelihood(self.y)
+        self.grad_updates = sgd_updates_adadelta(params, dropout_cost, lr_decay, 1e-6, sqr_norm_lim)
+
+    def fit(self, X, y):
+        np.random.seed(3435)
+        dataset = np.hstack([X, y.reshape((-1, 1))])
+        num_docs = dataset.shape[0]
+
+        # Shuffle dataset and assign to mini batches. If dataset size is not a multiple of mini batches, replicate
+        # extra data (at random).
+        if num_docs % self.batch_size > 0:
+            extra_data_num = self.batch_size - num_docs % self.batch_size
+            dataset = np.vstack([dataset, dataset[np.random.choice(num_docs, extra_data_num, replace=False)]])
+        dataset = np.random.permutation(dataset)
+        n_batches = num_docs//self.batch_size
+        n_train_batches = round(n_batches*0.9)
+
+        # divide train set into train/val sets
+        train_set = dataset[:n_train_batches*self.batch_size, :]
+        val_set = dataset[n_train_batches*self.batch_size:, :]
+        train_set_x, train_set_y = shared_dataset((train_set[:, :self.img_h], train_set[:, -1]))
+        val_set_x, val_set_y = shared_dataset((val_set[:, :self.img_h], val_set[:, -1]))
+        n_val_batches = n_batches - n_train_batches
+
+        # models
+        index = T.lscalar()
+        val_model = theano.function([index], self.classifier.errors(self.y), givens={
+            self.x: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+            self.y: val_set_y[index*self.batch_size:(index + 1)*self.batch_size]
+        })
+        test_model = theano.function([index], self.classifier.errors(self.y), givens={
+            self.x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+            self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
+        })
+        train_model = theano.function(
+            [index], self.classifier.negative_log_likelihood(self.y), updates=self.grad_updates, givens={
+                self.x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+                self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
+            }
+        )
+        zero_vec_tensor = T.vector()
+        zero_vec = np.zeros(self.img_w)
+        set_zero = theano.function(
+            [zero_vec_tensor], updates=[(self.words, T.set_subtensor(self.words[0, :], zero_vec_tensor))]
         )
 
-        # define parameters of the model and update functions using adadelta
-        params = classifier.params
-        for conv_layer in conv_layers:
-            params += conv_layer.params
-        if self.non_static:
-            # if word vectors are allowed to change, add them as model parameters
-            params += [Words]
-        cost = classifier.negative_log_likelihood(y)
-        dropout_cost = classifier.dropout_negative_log_likelihood(y)
-        grad_updates = sgd_updates_adadelta(params, dropout_cost, self.lr_decay, 1e-6, self.sqr_norm_lim)
-
-        # shuffle dataset and assign to mini batches. if dataset size is not a multiple of mini batches, replicate
-        # extra data (at random)
-        np.random.seed(3435)
-        if datasets[0].shape[0] % self.batch_size > 0:
-            extra_data_num = self.batch_size - datasets[0].shape[0]%self.batch_size
-            train_set = np.random.permutation(datasets[0])
-            extra_data = train_set[:extra_data_num]
-            new_data = np.append(datasets[0], extra_data,axis=0)
-        else:
-            new_data = datasets[0]
-        new_data = np.random.permutation(new_data)
-        n_batches = new_data.shape[0]//self.batch_size
-        n_train_batches = int(np.round(n_batches*0.9))
-        # divide train set into train/val sets
-        test_set_x = datasets[1][:, :img_h]
-        test_set_y = np.asarray(datasets[1][:, -1], "int32")
-        train_set = new_data[:n_train_batches*self.batch_size, :]
-        val_set = new_data[n_train_batches*self.batch_size:, :]
-        train_set_x, train_set_y = shared_dataset((train_set[:, :img_h], train_set[:,-1]))
-        val_set_x, val_set_y = shared_dataset((val_set[:, :img_h], val_set[:, -1]))
-        n_val_batches = n_batches - n_train_batches
-        val_model = theano.function([index], classifier.errors(y), givens={
-            x: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
-            y: val_set_y[index*self.batch_size:(index + 1)*self.batch_size]
-        })
-
-        # compile theano functions to get train/val/test errors
-        test_model = theano.function([index], classifier.errors(y), givens={
-            x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
-            y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
-        })
-        train_model = theano.function([index], cost, updates=grad_updates, givens={
-            x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
-            y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
-        })
-        test_pred_layers = []
-        test_size = test_set_x.shape[0]
-        test_layer0_input = Words[T.cast(x.flatten(), dtype='int32')].reshape((test_size, 1, img_h, Words.shape[1]))
-        for conv_layer in conv_layers:
-            test_layer0_output = conv_layer.predict(test_layer0_input, test_size)
-            test_pred_layers.append(test_layer0_output.flatten(2))
-        test_layer1_input = T.concatenate(test_pred_layers, 1)
-        test_y_pred = classifier.predict(test_layer1_input)
-        test_error = T.mean(T.neq(test_y_pred, y))
-        test_model_all = theano.function([x,y], test_error)
-
         # start training over mini-batches
-        print('... training')
+        print('training cnn...')
         epoch = 0
-        best_val_perf = 0
-        val_perf = 0
-        test_perf = 0
-        cost_epoch = 0
         while epoch < self.n_epochs:
             epoch += 1
             if self.shuffle_batch:
                 for minibatch_index in np.random.permutation(range(n_train_batches)):
-                    cost_epoch = train_model(minibatch_index)
+                    train_model(minibatch_index)
                     set_zero(zero_vec)
             else:
                 for minibatch_index in range(n_train_batches):
-                    cost_epoch = train_model(minibatch_index)
+                    train_model(minibatch_index)
                     set_zero(zero_vec)
             train_losses = [test_model(i) for i in range(n_train_batches)]
             train_perf = 1 - np.mean(train_losses)
             val_losses = [val_model(i) for i in range(n_val_batches)]
             val_perf = 1 - np.mean(val_losses)
-            print('epoch %i, train perf %f %%, val perf %f' % (epoch, train_perf*100., val_perf*100.))
-            if val_perf >= best_val_perf:
-                best_val_perf = val_perf
-                test_loss = test_model_all(test_set_x,test_set_y)
-                test_perf = 1 - test_loss
-        return test_perf
+            print('epoch {}, train perf {} %, val perf {} %'.format(epoch, train_perf*100, val_perf*100))
+
+    def predict_proba(self, X):
+        test_pred_layers = []
+        num_docs = X.shape[0]
+        test_layer0_input = self.words[T.cast(self.x.flatten(), dtype='int32')] \
+            .reshape((num_docs, 1, self.img_h, self.words.shape[1]))
+        for conv_layer in self.conv_layers:
+            test_layer0_output = conv_layer.predict(test_layer0_input, num_docs)
+            test_pred_layers.append(test_layer0_output.flatten(2))
+        test_layer1_input = T.concatenate(test_pred_layers, 1)
+        test_model = theano.function([self.x], self.classifier.predict_p(test_layer1_input))
+        return test_model(X)
 
 
 def shared_dataset(data_xy, borrow=True):
