@@ -18,8 +18,8 @@ __all__ = ['get_voting_pipeline', 'get_logreg_pipeline', 'get_cnn_pipeline']
 
 def get_bag_features(dev_docs, unsup_docs, unsup_docs_inv):
     memory = Memory(cachedir='cache', verbose=0)
-    case_sense = MapTransform([tokenize, normalize_urls])
-    case_insense = MapTransform([tokenize, str.lower, normalize_urls])
+    case_sense = MapTransform([tokenize, normalize])
+    case_insense = MapTransform([tokenize, str.lower, normalize])
     return [
         ('all_caps', Pipeline([('tokenizer', case_sense), ('feature', AllCaps())])),
         ('punctuations', Pipeline([('tokenizer', case_sense), ('feature', Punctuations())])),
@@ -76,7 +76,7 @@ def get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv):
 
 def get_cnn_pipeline(train_docs, dev_docs, use_w2v):
     size = 300
-    case_insense = MapTransform([tokenize_yookim, str.lower, normalize_urls])
+    case_insense = MapTransform([tokenize, str.lower, normalize])
     word_to_index = index_words(case_insense.transform(itertools.chain(train_docs, dev_docs)), min_index=1)
     # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
     word_vecs = np.random.uniform(-0.25, 0.25, (len(word_to_index) + 1, size))

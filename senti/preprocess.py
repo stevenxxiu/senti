@@ -1,19 +1,16 @@
 
 import re
 
-__all__ = ['normalize_urls', 'tokenize', 'tokenize_yookim', 'tokenize_yookim_sst']
+__all__ = ['normalize', 'tokenize']
 
 
-def normalize_urls(text):
-    return re.sub(r'\S{,4}://\S+', '_URL', text)
+def normalize(text):
+    text = re.sub(r'\S{,4}://\S+', '_URL', text)
+    text = re.sub(r'\$[\d\.]+', '_MONEY', text)
+    return text.strip()
 
 
 def tokenize(text):
-    return re.findall(r'\w+|\$[\d\.]+|\S+', text)
-
-
-def tokenize_yookim(text):
-    text = re.sub(r'[^A-Za-z0-9(),!?\'`]', ' ', text)
     text = re.sub(r'\'s', ' \'s', text)
     text = re.sub(r'\'ve', ' \'ve', text)
     text = re.sub(r'n\'t', ' n\'t', text)
@@ -25,11 +22,4 @@ def tokenize_yookim(text):
     text = re.sub(r'\(', ' \( ', text)
     text = re.sub(r'\)', ' \) ', text)
     text = re.sub(r'\?', ' \? ', text)
-    text = re.sub(r'\s{2,}', ' ', text)
-    return text.strip().split()
-
-
-def tokenize_yookim_sst(text):
-    text = re.sub(r'[^A-Za-z0-9(),!?\'`]', ' ', text)
-    text = re.sub(r'\s{2,}', ' ', text)
-    return text.strip().split()
+    return text.split()
