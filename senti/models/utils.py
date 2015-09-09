@@ -8,30 +8,26 @@ import theano.tensor.shared_randomstreams
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
 
-__all__ = ['ReLU', 'Sigmoid', 'Tanh', 'Iden', 'LeNetConvPoolLayer', 'MLPDropout', 'sgd_updates_adadelta']
+__all__ = ['relu', 'sigmoid', 'tanh', 'iden', 'LeNetConvPoolLayer', 'MLPDropout', 'sgd_updates_adadelta']
 
 
-def ReLU(x):
-    y = T.maximum(0.0, x)
-    return(y)
+def relu(x):
+    return T.maximum(0.0, x)
 
 
-def Sigmoid(x):
-    y = T.nnet.sigmoid(x)
-    return(y)
+def sigmoid(x):
+    return T.nnet.sigmoid(x)
 
 
-def Tanh(x):
-    y = T.tanh(x)
-    return(y)
+def tanh(x):
+    return T.tanh(x)
 
 
-def Iden(x):
-    y = x
-    return(y)
+def iden(x):
+    return x
 
 
-class HiddenLayer(object):
+class HiddenLayer:
     """
     Class for HiddenLayer
     """
@@ -42,7 +38,7 @@ class HiddenLayer(object):
         self.activation = activation
 
         if W is None:
-            if activation.func_name == "ReLU":
+            if activation.func_name == "relu":
                 W_values = np.asarray(0.01 * rng.standard_normal(size=(n_in, n_out)), dtype=theano.config.floatX)
             else:
                 W_values = np.asarray(rng.uniform(low=-np.sqrt(6. / (n_in + n_out)), high=np.sqrt(6. / (n_in +
@@ -89,7 +85,7 @@ class DropoutHiddenLayer(HiddenLayer):
 
         self.output = _dropout_from_layer(rng, self.output, p=dropout_rate)
 
-class MLPDropout(object):
+class MLPDropout:
     """A multilayer perceptron with dropout"""
     def __init__(self,rng,input,layer_sizes,dropout_rates,activations,use_bias=True):
 
@@ -175,7 +171,7 @@ class MLPDropout(object):
                 p_y_given_x = T.nnet.softmax(T.dot(next_layer_input, layer.W) + layer.b)
         return p_y_given_x
 
-class MLP(object):
+class MLP:
     """Multi-Layer Perceptron Class
     A multilayer perceptron is a feedforward artificial neural network model
     that has one layer or more of hidden units and nonlinear activations.
@@ -231,7 +227,7 @@ class MLP(object):
         # made out of
         self.params = self.hiddenLayer.params + self.logRegressionLayer.params
 
-class LogisticRegression(object):
+class LogisticRegression:
     """Multi-class Logistic Regression Class
     The logistic regression is fully described by a weight matrix :math:`W`
     and bias vector :math:`b`. Classification is done by projecting data
@@ -330,7 +326,7 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
-class LeNetConvPoolLayer(object):
+class LeNetConvPoolLayer:
     """Pool Layer of a convolutional network """
 
     def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2), non_linear="tanh"):
@@ -380,7 +376,7 @@ class LeNetConvPoolLayer(object):
             conv_out_tanh = T.tanh(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
             self.output = downsample.max_pool_2d(input=conv_out_tanh, ds=self.poolsize, ignore_border=True)
         elif self.non_linear=="relu":
-            conv_out_tanh = ReLU(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+            conv_out_tanh = relu(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
             self.output = downsample.max_pool_2d(input=conv_out_tanh, ds=self.poolsize, ignore_border=True)
         else:
             pooled_out = downsample.max_pool_2d(input=conv_out, ds=self.poolsize, ignore_border=True)
@@ -397,7 +393,7 @@ class LeNetConvPoolLayer(object):
             conv_out_tanh = T.tanh(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
             output = downsample.max_pool_2d(input=conv_out_tanh, ds=self.poolsize, ignore_border=True)
         if self.non_linear=="relu":
-            conv_out_tanh = ReLU(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+            conv_out_tanh = relu(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
             output = downsample.max_pool_2d(input=conv_out_tanh, ds=self.poolsize, ignore_border=True)
         else:
             pooled_out = downsample.max_pool_2d(input=conv_out, ds=self.poolsize, ignore_border=True)
