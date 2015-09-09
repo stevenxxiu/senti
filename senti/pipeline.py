@@ -86,13 +86,13 @@ def get_cnn_pipeline(train_docs, dev_docs, use_w2v):
         w2v_obj.load_binary('../google/GoogleNews-vectors-negative300.bin')
         for word, i in word_to_index.items():
             if word in w2v_obj.word_to_index:
-                word_vecs[i] = w2v_obj.X[w2v_obj.word_to_index[i]]
+                word_vecs[i] = w2v_obj.X[w2v_obj.word_to_index[word]]
     return 'cnn(use_w2v={})'.format(use_w2v), Pipeline([
         ('case_insense', case_insense),
         ('index_clipped', IndexClipped(word_to_index, 5 - 1, 56)),
         ('cnn', ConvNet(
             word_vecs, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rate=[0.5],
-            conv_non_linear='relu', activations=(iden,), non_static=True, shuffle_batch=True, n_epochs=25,
+            conv_non_linear='relu', activations=(iden,), non_static=True, shuffle_batch=True, n_epochs=8,
             batch_size=50, lr_decay=0.95, sqr_norm_lim=9
         )),
     ])

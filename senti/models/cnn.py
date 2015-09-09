@@ -28,6 +28,7 @@ class ConvNet(BaseEstimator):
         self.batch_size = batch_size
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs
+        self.classes_ = np.arange(hidden_units[1])
         rng = np.random.RandomState(3435)
         filter_w = img_w
         feature_maps = hidden_units[0]
