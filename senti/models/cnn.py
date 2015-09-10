@@ -69,7 +69,8 @@ class ConvNet(BaseEstimator):
         hidden_units[0] = feature_maps*len(filter_hs)
 
         model = Sequential()
-        model.add(InputLayer(layer1_input))
+        self._layer1 = InputLayer(layer1_input)
+        model.add(self._layer1)
         model.add(Dropout(dropout_rates[0]))
         for n_in, n_out, activation, dropout in zip(hidden_units, hidden_units[1:-1], activations, dropout_rates[1:]):
             model.add(Dense(n_in, n_out, init='uniform', activation=activation))
@@ -163,8 +164,8 @@ class ConvNet(BaseEstimator):
         for conv_layer in self.conv_layers:
             test_layer0_output = conv_layer.predict(test_layer0_input, num_docs)
             test_pred_layers.append(test_layer0_output.flatten(2))
-        test_layer1_input = T.concatenate(test_pred_layers, 1)
-        test_model = theano.function([self.x], self.classifier.predict_p(test_layer1_input))
+        self._layer1.input = T.concatenate(test_pred_layers, 1)
+        test_model = theano.function([self.x], self.classifier.get_output(False))
         return test_model(X)
 
 
