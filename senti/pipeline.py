@@ -91,7 +91,7 @@ def get_cnn_pipeline(train_docs, dev_docs, use_w2v):
         ('case_insense', case_insense),
         ('index_clipped', IndexClipped(word_to_index, 5 - 1, 56)),
         ('cnn', ConvNet(
-            word_vecs, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rate=[0.5],
+            word_vecs, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rates=[0.5],
             conv_non_linear='relu', activations=(iden,), non_static=True, shuffle_batch=True, n_epochs=8,
             batch_size=50, lr_decay=0.95, sqr_norm_lim=9
         )),

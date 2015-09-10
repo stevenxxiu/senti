@@ -3,15 +3,26 @@ import numpy as np
 import theano
 import theano.tensor as T
 from sklearn.base import BaseEstimator
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Layer
 
 from senti.models.utils import *
 
 __all__ = ['ConvNet']
 
 
+class InputLayer(Layer):
+    def __init__(self, input_):
+        super().__init__()
+        self.input = input_
+
+    def get_input(self, train=False):
+        return self.input
+
+
 class ConvNet(BaseEstimator):
     def __init__(
-        self, word_vecs, img_w, img_h, filter_hs, hidden_units, dropout_rate, conv_non_linear, activations, non_static,
+        self, word_vecs, img_w, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, non_static,
         shuffle_batch, n_epochs, batch_size, lr_decay, sqr_norm_lim
     ):
         '''
@@ -56,9 +67,22 @@ class ConvNet(BaseEstimator):
             layer1_inputs.append(layer1_input)
         layer1_input = T.concatenate(layer1_inputs, 1)
         hidden_units[0] = feature_maps*len(filter_hs)
-        self.classifier = MLPDropout(
-            rng, input=layer1_input, layer_sizes=hidden_units, activations=activations, dropout_rates=dropout_rate
-        )
+
+        model = Sequential()
+        model.add(InputLayer(layer1_input))
+        model.add(Dropout(dropout_rates[0]))
+        for n_in, n_out, activation, dropout in zip(hidden_units, hidden_units[1:-1], activations, dropout_rates[1:]):
+            model.add(Dense(n_in, n_out, init='uniform', activation=activation))
+            model.add(Dropout(dropout))
+        model.add(Dense(hidden_units[-2], hidden_units[-1], init='uniform', activation='softmax'))
+        self.classifier = model
+        self.classifier.errors = \
+            lambda y: T.mean(T.neq(T.argmax(model.get_output(False), axis=1), y))
+        self.classifier.negative_log_likelihood = \
+            lambda y: -T.mean(T.log(model.get_output(False))[T.arange(y.shape[0]), y])
+        self.classifier.dropout_negative_log_likelihood = \
+            lambda y: -T.mean(T.log(model.get_output(True))[T.arange(y.shape[0]), y])
+
         # define parameters of the model and update functions using adadelta
         params = self.classifier.params
         for conv_layer in self.conv_layers:
