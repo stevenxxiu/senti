@@ -2,28 +2,25 @@
 import numpy as np
 import theano
 import theano.tensor as T
+from keras.constraints import identity, maxnorm
+from keras.layers.convolutional import Convolution1D, MaxPooling1D
+from keras.layers.core import Dense, Dropout, Flatten
+from keras.layers.embeddings import Embedding
+from keras.models import Graph
+from keras.optimizers import Adadelta
 from sklearn.base import BaseEstimator
-from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Layer
-
-from senti.models.utils import *
 
 __all__ = ['ConvNet']
 
 
-class InputLayer(Layer):
-    def __init__(self, input_):
-        super().__init__()
-        self.input = input_
-
-    def get_input(self, train=False):
-        return self.input
+def st(name, i):
+    return '{}_{}'.format(name, i)
 
 
 class ConvNet(BaseEstimator):
     def __init__(
         self, word_vecs, img_w, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, non_static,
-        shuffle_batch, n_epochs, batch_size, lr_decay, sqr_norm_lim
+        shuffle_batch, n_epochs, batch_size, lr_decay, norm_lim
     ):
         '''
         args:
@@ -40,42 +37,38 @@ class ConvNet(BaseEstimator):
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs
         self.classes_ = np.arange(hidden_units[1])
-        rng = np.random.RandomState(3435)
-        filter_w = img_w
-        feature_maps = hidden_units[0]
-        filter_shapes = []
-        pool_sizes = []
-        for filter_h in filter_hs:
-            filter_shapes.append((feature_maps, 1, filter_h, filter_w))
-            pool_sizes.append((img_h - filter_h + 1, img_w - filter_w + 1))
-        self.x = T.matrix('x')
-        self.y = T.ivector('y')
-        self.words = theano.shared(value=word_vecs, name='words')
-        layer0_input = self.words[T.cast(self.x.flatten(), dtype='int32')] \
-            .reshape((self.x.shape[0], 1, self.x.shape[1], self.words.shape[1]))
-        self.conv_layers = []
-        layer1_inputs = []
-        for i in range(len(filter_hs)):
-            filter_shape = filter_shapes[i]
-            pool_size = pool_sizes[i]
-            conv_layer = LeNetConvPoolLayer(
-                rng, input=layer0_input, image_shape=(batch_size, 1, img_h, img_w), filter_shape=filter_shape,
-                poolsize=pool_size, non_linear=conv_non_linear
-            )
-            layer1_input = conv_layer.output.flatten(2)
-            self.conv_layers.append(conv_layer)
-            layer1_inputs.append(layer1_input)
-        layer1_input = T.concatenate(layer1_inputs, 1)
-        hidden_units[0] = feature_maps*len(filter_hs)
 
-        model = Sequential()
-        self._layer1 = InputLayer(layer1_input)
-        model.add(self._layer1)
-        model.add(Dropout(dropout_rates[0]))
-        for n_in, n_out, activation, dropout in zip(hidden_units, hidden_units[1:-1], activations, dropout_rates[1:]):
-            model.add(Dense(n_in, n_out, init='uniform', activation=activation))
-            model.add(Dropout(dropout))
-        model.add(Dense(hidden_units[-2], hidden_units[-1], init='uniform', activation='softmax'))
+        self.y = T.ivector('y')
+
+        model = Graph()
+        model.add_input('input', dtype='int32')
+        model.add_node(Embedding(
+            word_vecs.shape[0], word_vecs.shape[1], weights=[word_vecs],
+            W_constraint=(None if non_static else identity)
+        ), 'embedding', 'input')
+        for filter_h in filter_hs:
+            model.add_node(Convolution1D(
+                img_w, hidden_units[0], filter_h, activation=conv_non_linear
+            ), st('conv', filter_h), 'embedding')
+            model.add_node(MaxPooling1D(
+                img_h - filter_h + 1, ignore_border=True
+            ), st('maxpool', filter_h), st('conv', filter_h))
+            model.add_node(Flatten(), st('flatten', filter_h), st('maxpool', filter_h))
+        hidden_units[0] *= len(filter_hs)
+        model.add_node(Dropout(
+            dropout_rates[0]
+        ), st('dropout', 0), inputs=list(st('flatten', filter_h) for filter_h in filter_hs))
+        i = -1
+        for i, (n_in, n_out, activation, dropout) in \
+                enumerate(zip(hidden_units, hidden_units[1:-1], activations, dropout_rates[1:])):
+            model.add_node(Dense(
+                n_in, n_out, init='uniform', activation=activation, W_constraint=maxnorm(norm_lim)
+            ), st('dense', i), st('dropout', i))
+            model.add_node(Dropout(dropout), st('dropout', i + 1), st('dense', i))
+        model.add_node(Dense(
+            hidden_units[-2], hidden_units[-1], init='uniform', activation='softmax', W_constraint=maxnorm(norm_lim)
+        ), 'output', st('dropout', i + 1), create_output=True)
+
         self.classifier = model
         self.classifier.errors = \
             lambda y: T.mean(T.neq(T.argmax(model.get_output(False), axis=1), y))
@@ -84,15 +77,8 @@ class ConvNet(BaseEstimator):
         self.classifier.dropout_negative_log_likelihood = \
             lambda y: -T.mean(T.log(model.get_output(True))[T.arange(y.shape[0]), y])
 
-        # define parameters of the model and update functions using adadelta
-        params = self.classifier.params
-        for conv_layer in self.conv_layers:
-            params += conv_layer.params
-        if non_static:
-            # if word vectors are allowed to change, add them as model parameters
-            params += [self.words]
         dropout_cost = self.classifier.dropout_negative_log_likelihood(self.y)
-        self.grad_updates = sgd_updates_adadelta(params, dropout_cost, lr_decay, 1e-6, sqr_norm_lim)
+        self.grad_updates = Adadelta(rho=lr_decay).get_updates(self.classifier.params, model.constraints, dropout_cost)
 
     def fit(self, X, y):
         np.random.seed(3435)
@@ -118,23 +104,18 @@ class ConvNet(BaseEstimator):
         # models
         index = T.lscalar()
         val_model = theano.function([index], self.classifier.errors(self.y), givens={
-            self.x: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+            self.classifier.inputs['input'].input: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
             self.y: val_set_y[index*self.batch_size:(index + 1)*self.batch_size]
         })
         test_model = theano.function([index], self.classifier.errors(self.y), givens={
-            self.x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+            self.classifier.inputs['input'].input: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
             self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
         })
         train_model = theano.function(
             [index], self.classifier.negative_log_likelihood(self.y), updates=self.grad_updates, givens={
-                self.x: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+                self.classifier.inputs['input'].input: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
                 self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
             }
-        )
-        zero_vec_tensor = T.vector()
-        zero_vec = np.zeros(self.img_w)
-        set_zero = theano.function(
-            [zero_vec_tensor], updates=[(self.words, T.set_subtensor(self.words[0, :], zero_vec_tensor))]
         )
 
         # start training over mini-batches
@@ -145,11 +126,9 @@ class ConvNet(BaseEstimator):
             if self.shuffle_batch:
                 for minibatch_index in np.random.permutation(range(n_train_batches)):
                     train_model(minibatch_index)
-                    set_zero(zero_vec)
             else:
                 for minibatch_index in range(n_train_batches):
                     train_model(minibatch_index)
-                    set_zero(zero_vec)
             train_losses = [test_model(i) for i in range(n_train_batches)]
             train_perf = 1 - np.mean(train_losses)
             val_losses = [val_model(i) for i in range(n_val_batches)]
@@ -157,16 +136,8 @@ class ConvNet(BaseEstimator):
             print('epoch {}, train perf {} %, val perf {} %'.format(epoch, train_perf*100, val_perf*100))
 
     def predict_proba(self, X):
-        test_pred_layers = []
-        num_docs = X.shape[0]
-        test_layer0_input = self.words[T.cast(self.x.flatten(), dtype='int32')] \
-            .reshape((num_docs, 1, self.img_h, self.words.shape[1]))
-        for conv_layer in self.conv_layers:
-            test_layer0_output = conv_layer.predict(test_layer0_input, num_docs)
-            test_pred_layers.append(test_layer0_output.flatten(2))
-        self._layer1.input = T.concatenate(test_pred_layers, 1)
-        test_model = theano.function([self.x], self.classifier.get_output(False))
-        return test_model(X)
+        # XXX
+        pass
 
 
 def shared_dataset(data_xy, borrow=True):
@@ -177,6 +148,6 @@ def shared_dataset(data_xy, borrow=True):
     to a large decrease in performance.
     '''
     data_x, data_y = data_xy
-    shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX), borrow=borrow)
-    shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX), borrow=borrow)
-    return shared_x, T.cast(shared_y, 'int32')
+    shared_x = theano.shared(np.asarray(data_x, dtype='int32'), borrow=borrow)
+    shared_y = theano.shared(np.asarray(data_y, dtype='int32'), borrow=borrow)
+    return shared_x, shared_y

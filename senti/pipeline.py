@@ -1,6 +1,4 @@
 
-import itertools
-
 import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
@@ -11,7 +9,7 @@ from senti.features import *
 from senti.models import *
 from senti.persist import CachedFitTransform
 from senti.preprocess import *
-from senti.transforms import MapTransform
+from senti.transforms import *
 
 __all__ = ['get_voting_pipeline', 'get_logreg_pipeline', 'get_cnn_pipeline']
 
@@ -60,39 +58,42 @@ def get_bag_features(dev_docs, unsup_docs, unsup_docs_inv):
 
 def get_voting_pipeline(dev_docs, unsup_docs, unsup_docs_inv):
     features = get_bag_features(dev_docs, unsup_docs, unsup_docs_inv)
-    return 'ensemble_logreg({})'.format(','.join(name for name, estimator in features)), VotingClassifier(list(
-        (name, Pipeline([('feature', estimator), ('logreg', LogisticRegression())]))
-        for name, estimator in features
-    ), voting='soft')
+    name = 'ensemble_logreg({})'.format(','.join(name for name, estimator in features))
+    pipeline = Pipeline([
+        ('features', FeatureUnion(features)),
+        ('logreg', LogisticRegression()),
+    ])
+    return name, pipeline
 
 
 def get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv):
     features = get_bag_features(dev_docs, unsup_docs, unsup_docs_inv)
-    return 'logreg({})'.format(','.join(name for name, estimator in features)), Pipeline([
+    name = 'logreg({})'.format(','.join(name for name, estimator in features))
+    pipeline = Pipeline([
         ('features', FeatureUnion(features)),
         ('logreg', LogisticRegression()),
     ])
+    return name, pipeline
 
 
-def get_cnn_pipeline(train_docs, dev_docs, use_w2v):
-    size = 300
-    case_insense = MapTransform([tokenize, str.lower, normalize])
-    word_to_index = index_words(case_insense.transform(itertools.chain(train_docs, dev_docs)), min_index=1)
-    # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
-    word_vecs = np.random.uniform(-0.25, 0.25, (len(word_to_index) + 1, size))
-    word_vecs[0] = np.zeros(size)
-    if use_w2v:
-        w2v_obj = Word2Vec()
-        w2v_obj.load_binary('../google/GoogleNews-vectors-negative300.bin')
-        for word, i in word_to_index.items():
-            if word in w2v_obj.word_to_index:
-                word_vecs[i] = w2v_obj.X[w2v_obj.word_to_index[word]]
-    return 'cnn(use_w2v={})'.format(use_w2v), Pipeline([
-        ('case_insense', case_insense),
-        ('index_clipped', IndexClipped(word_to_index, 5 - 1, 56)),
+def get_cnn_pipeline(train_docs, dev_docs, dev_y, use_w2v):
+    name = 'cnn(use_w2v={})'.format(use_w2v)
+    input_pipeline = Pipeline([
+        ('case_insense', MapTransform([tokenize, str.lower, normalize])),
+        ('index', Index(
+            # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
+            lambda num_words: np.random.uniform(-0.25, 0.25, (num_words, 300)),
+            Word2Vec().load_binary('../google/GoogleNews-vectors-negative300.bin') if use_w2v else None,
+            include_zero=True
+        )),
+        ('clippad', ClipPad(5 - 1, 56))
+    ])
+    input_pipeline.fit(train_docs)
+    pipeline = Pipeline(input_pipeline.steps + [
         ('cnn', ConvNet(
-            word_vecs, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rates=[0.5],
-            conv_non_linear='relu', activations=(iden,), non_static=True, shuffle_batch=True, n_epochs=8,
-            batch_size=50, lr_decay=0.95, sqr_norm_lim=9
+            input_pipeline.named_steps['index'].X, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3],
+            dropout_rates=[0.5], conv_non_linear='relu', activations=(lambda x: x,), non_static=True,
+            shuffle_batch=True, n_epochs=8, batch_size=50, lr_decay=0.95, norm_lim=3
         )),
     ])
+    return name, pipeline

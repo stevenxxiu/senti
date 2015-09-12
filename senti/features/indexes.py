@@ -4,38 +4,39 @@ from collections import Counter
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['index_words', 'IndexClipped']
+__all__ = ['Index']
 
 
-def index_words(docs, min_index=0, min_df=1):
-    word_to_index = {}
-    dfs = Counter()
-    for doc in docs:
-        for word in doc:
-            dfs[word] += 1
-            if word not in word_to_index:
-                word_to_index[word] = min_index + len(word_to_index)
-    for word, df in dfs.items():
-        if df < min_df:
-            del word_to_index[word]
-    return word_to_index
-
-
-class IndexClipped(BaseEstimator):
-    def __init__(self, word_to_index, pad, max_len):
-        self.word_to_index = word_to_index
-        self.pad = pad
-        self.max_len = max_len
+class Index(BaseEstimator):
+    def __init__(self, rand_vecs, embeddings=None, include_zero=True, min_df=1):
+        self.rand_vecs = rand_vecs
+        if embeddings:
+            self.word_to_index = embeddings.word_to_index.copy()
+            self.X = embeddings.X
+            if include_zero and 0 in self.word_to_index.values():
+                for word in self.word_to_index:
+                    self.word_to_index[word] += 1
+                self.X = np.vstack([np.zeros(embeddings.X.shape[1]), self.X])
+        else:
+            self.word_to_index = {}
+            self.X = np.zeros_like(rand_vecs(1))
+        self.include_zero = include_zero
+        self.min_df = min_df
 
     def fit(self, docs, y=None):
+        dfs = Counter()
+        for doc in docs:
+            for word in doc:
+                dfs[word] += 1
+        for word, df in dfs.items():
+            if word not in self.word_to_index and df >= self.min_df:
+                self.word_to_index[word] = self.include_zero + len(self.word_to_index)
+        self.X = np.vstack([self.X, self.rand_vecs(self.include_zero + len(self.word_to_index) - self.X.shape[0])])
         return self
 
     def transform(self, docs):
-        vecs = []
         for doc in docs:
-            vec = np.zeros(self.max_len + self.pad*2)
-            for i, word in zip(range(self.max_len), doc):
-                if word in self.word_to_index:
-                    vec[self.pad + i] = self.word_to_index[word]
-            vecs.append(vec)
-        return np.vstack(vecs)
+            indexes = []
+            for word in doc:
+                indexes.append(self.word_to_index.get(word, 0))
+            yield indexes

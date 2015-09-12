@@ -1,2 +1,2 @@
 
-from senti.transforms.map import *
+from senti.transforms.transforms import *

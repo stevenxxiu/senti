@@ -16,13 +16,15 @@ def main():
     with open('train.json') as train_sr, open('unsup.txt', encoding='ISO-8859-2') as unsup_sr, \
             open('dev.json') as dev_sr:
         train_docs = FieldExtractor(train_sr, 'text')
+        train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), int)
         unsup_docs = HeadSr(unsup_sr, 10**6)
         unsup_docs_inv = HeadSr(unsup_sr, 10**5)
         dev_docs = FieldExtractor(dev_sr, 'text')
+        dev_labels = np.fromiter(FieldExtractor(dev_sr, 'label'), int)
         # pipeline_name, pipeline = get_voting_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
         # pipeline_name, pipeline = get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv)
-        pipeline_name, pipeline = get_cnn_pipeline(train_docs, dev_docs, True)
-        pipeline.fit(train_docs, np.fromiter(FieldExtractor(train_sr, 'label'), int))
+        pipeline_name, pipeline = get_cnn_pipeline(train_docs, dev_docs, dev_labels, False)
+        pipeline.fit(train_docs, train_labels)
         all_probs = pipeline.predict_proba(dev_docs)
 
     classes = pipeline.classes_
@@ -38,9 +40,7 @@ def main():
             }) + '\n')
 
     # write scores
-    with open('dev.json') as sr:
-        gold_labels = np.fromiter(FieldExtractor(sr, 'label'), int)
-    write_score('results/{}'.format(pipeline_name), gold_labels, all_probs, classes, (0, 2))
+    write_score('results/{}'.format(pipeline_name), dev_labels, all_probs, classes, (0, 2))
 
 if __name__ == '__main__':
     main()
