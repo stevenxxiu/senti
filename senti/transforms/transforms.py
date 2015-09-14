@@ -4,10 +4,10 @@ from sklearn.base import BaseEstimator
 
 from senti.transforms.base import ReiterableMixin
 
-__all__ = ['MapTransform', 'ClipPad']
+__all__ = ['Map', 'Clip']
 
 
-class MapTransform(BaseEstimator, ReiterableMixin):
+class Map(BaseEstimator, ReiterableMixin):
     def __init__(self, funcs):
         self.funcs = funcs
 
@@ -21,9 +21,8 @@ class MapTransform(BaseEstimator, ReiterableMixin):
             yield doc
 
 
-class ClipPad(BaseEstimator):
-    def __init__(self, pad, max_len):
-        self.pad = pad
+class Clip(BaseEstimator):
+    def __init__(self, max_len):
         self.max_len = max_len
 
     def fit(self, docs, y=None):
@@ -32,8 +31,7 @@ class ClipPad(BaseEstimator):
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            vec = np.zeros(self.max_len + self.pad*2, dtype='int32')
-            doc = doc[:self.max_len]
-            vec[self.pad:self.pad + len(doc)] = doc
+            vec = np.zeros(self.max_len)
+            vec[:min(len(doc), self.max_len)] = doc[:self.max_len]
             vecs.append(vec)
         return np.vstack(vecs)

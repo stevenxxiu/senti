@@ -40,8 +40,8 @@ class ConvNet(BaseEstimator):
         convs = []
         for filter_h in filter_hs:
             conv = network
-            conv = lasagne.layers.Conv1DLayer(conv, hidden_units[0], filter_h, nonlinearity=conv_non_linear)
-            conv = lasagne.layers.MaxPool1DLayer(conv, img_h - filter_h + 1, ignore_border=True)
+            conv = lasagne.layers.Conv1DLayer(conv, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear)
+            conv = lasagne.layers.MaxPool1DLayer(conv, img_h + filter_h - 1, ignore_border=True)
             conv = lasagne.layers.FlattenLayer(conv)
             convs.append(conv)
         network = lasagne.layers.ConcatLayer(convs)
