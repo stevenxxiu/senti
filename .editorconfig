@@ -12,5 +12,5 @@ max_line_length = 120
 # isort
 multi_line_output = 5
 order_by_type = true
-known_third_party=numpy,scipy,matplotlib,sklearn,theano,gensim,keras
+known_third_party=numpy,scipy,matplotlib,sklearn,theano,gensim,keras,lasagne
 not_skip=__init__.py

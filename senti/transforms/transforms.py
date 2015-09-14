@@ -32,7 +32,7 @@ class ClipPad(BaseEstimator):
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            vec = np.zeros(self.max_len + self.pad*2)
+            vec = np.zeros(self.max_len + self.pad*2, dtype='int32')
             doc = doc[:self.max_len]
             vec[self.pad:self.pad + len(doc)] = doc
             vecs.append(vec)

@@ -1,5 +1,6 @@
 
 import numpy as np
+from lasagne.nonlinearities import identity, rectify
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -92,7 +93,7 @@ def get_cnn_pipeline(train_docs, dev_docs, dev_y, use_w2v):
     pipeline = Pipeline(input_pipeline.steps + [
         ('cnn', ConvNet(
             input_pipeline.named_steps['index'].X, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-            dropout_rates=[0.5], conv_non_linear='relu', activations=(lambda x: x,), non_static=True,
+            dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), non_static=True,
             shuffle_batch=True, n_epochs=8, batch_size=50, lr_decay=0.95, norm_lim=3
         )),
     ])

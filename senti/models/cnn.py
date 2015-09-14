@@ -1,20 +1,12 @@
 
+import lasagne
 import numpy as np
 import theano
 import theano.tensor as T
-from keras.constraints import identity, maxnorm
-from keras.layers.convolutional import Convolution1D, MaxPooling1D
-from keras.layers.core import Dense, Dropout, Flatten
-from keras.layers.embeddings import Embedding
-from keras.models import Graph
-from keras.optimizers import Adadelta
+from lasagne.nonlinearities import softmax
 from sklearn.base import BaseEstimator
 
 __all__ = ['ConvNet']
-
-
-def st(name, i):
-    return '{}_{}'.format(name, i)
 
 
 class ConvNet(BaseEstimator):
@@ -36,49 +28,37 @@ class ConvNet(BaseEstimator):
         self.batch_size = batch_size
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs
-        self.classes_ = np.arange(hidden_units[1])
-
+        self.classes_ = np.arange(hidden_units[-1])
+        constraints = {}
+        self.X = T.imatrix('X')
         self.y = T.ivector('y')
-
-        model = Graph()
-        model.add_input('input', dtype='int32')
-        model.add_node(Embedding(
-            word_vecs.shape[0], word_vecs.shape[1], weights=[word_vecs],
-            W_constraint=(None if non_static else identity)
-        ), 'embedding', 'input')
+        network = lasagne.layers.InputLayer((batch_size, img_h), self.X)
+        network = lasagne.layers.EmbeddingLayer(network, word_vecs.shape[0], word_vecs.shape[1], W=word_vecs)
+        if not non_static:
+            constraints[network.W] = lambda v: network.W
+        network = lasagne.layers.DimshuffleLayer(network, (0, 2, 1))
+        convs = []
         for filter_h in filter_hs:
-            model.add_node(Convolution1D(
-                img_w, hidden_units[0], filter_h, activation=conv_non_linear
-            ), st('conv', filter_h), 'embedding')
-            model.add_node(MaxPooling1D(
-                img_h - filter_h + 1, ignore_border=True
-            ), st('maxpool', filter_h), st('conv', filter_h))
-            model.add_node(Flatten(), st('flatten', filter_h), st('maxpool', filter_h))
-        hidden_units[0] *= len(filter_hs)
-        model.add_node(Dropout(
-            dropout_rates[0]
-        ), st('dropout', 0), inputs=list(st('flatten', filter_h) for filter_h in filter_hs))
-        i = -1
-        for i, (n_in, n_out, activation, dropout) in \
-                enumerate(zip(hidden_units, hidden_units[1:-1], activations, dropout_rates[1:])):
-            model.add_node(Dense(
-                n_in, n_out, init='uniform', activation=activation, W_constraint=maxnorm(norm_lim)
-            ), st('dense', i), st('dropout', i))
-            model.add_node(Dropout(dropout), st('dropout', i + 1), st('dense', i))
-        model.add_node(Dense(
-            hidden_units[-2], hidden_units[-1], init='uniform', activation='softmax', W_constraint=maxnorm(norm_lim)
-        ), 'output', st('dropout', i + 1), create_output=True)
-
-        self.classifier = model
-        self.classifier.errors = \
-            lambda y: T.mean(T.neq(T.argmax(model.get_output(False), axis=1), y))
-        self.classifier.negative_log_likelihood = \
-            lambda y: -T.mean(T.log(model.get_output(False))[T.arange(y.shape[0]), y])
-        self.classifier.dropout_negative_log_likelihood = \
-            lambda y: -T.mean(T.log(model.get_output(True))[T.arange(y.shape[0]), y])
-
-        dropout_cost = self.classifier.dropout_negative_log_likelihood(self.y)
-        self.grad_updates = Adadelta(rho=lr_decay).get_updates(self.classifier.params, model.constraints, dropout_cost)
+            conv = network
+            conv = lasagne.layers.Conv1DLayer(conv, hidden_units[0], filter_h, nonlinearity=conv_non_linear)
+            conv = lasagne.layers.MaxPool1DLayer(conv, img_h - filter_h + 1, ignore_border=True)
+            conv = lasagne.layers.FlattenLayer(conv)
+            convs.append(conv)
+        network = lasagne.layers.ConcatLayer(convs)
+        network = lasagne.layers.DropoutLayer(network, dropout_rates[0])
+        for n, activation, dropout in zip(hidden_units[1:-1], activations, dropout_rates[1:]):
+            network = lasagne.layers.DenseLayer(network, n, nonlinearity=activation)
+            constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
+            network = lasagne.layers.DropoutLayer(network, dropout)
+        network = lasagne.layers.DenseLayer(network, hidden_units[-1], nonlinearity=softmax)
+        constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
+        self.network = network
+        self.prediction = lasagne.layers.get_output(self.network, deterministic=True)
+        self.loss = -T.mean(T.log(lasagne.layers.get_output(network))[T.arange(self.y.shape[0]), self.y])
+        params = lasagne.layers.get_all_params(network, trainable=True)
+        self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
+        for param, constraint in constraints.items():
+            self.updates[param] = constraint(self.updates[param])
 
     def fit(self, X, y):
         np.random.seed(3435)
@@ -101,46 +81,46 @@ class ConvNet(BaseEstimator):
         val_set_x, val_set_y = shared_dataset((val_set[:, :self.img_h], val_set[:, -1]))
         n_val_batches = n_batches - n_train_batches
 
-        # models
+        # theano functions
         index = T.lscalar()
-        val_model = theano.function([index], self.classifier.errors(self.y), givens={
-            self.classifier.inputs['input'].input: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
-            self.y: val_set_y[index*self.batch_size:(index + 1)*self.batch_size]
-        })
-        test_model = theano.function([index], self.classifier.errors(self.y), givens={
-            self.classifier.inputs['input'].input: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+        acc = T.mean(T.eq(T.argmax(self.prediction, axis=1), self.y), dtype=theano.config.floatX)
+        train_batch = theano.function([index], [self.loss, acc], updates=self.updates, givens={
+            self.X: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
             self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
         })
-        train_model = theano.function(
-            [index], self.classifier.negative_log_likelihood(self.y), updates=self.grad_updates, givens={
-                self.classifier.inputs['input'].input: train_set_x[index*self.batch_size:(index + 1)*self.batch_size],
-                self.y: train_set_y[index*self.batch_size:(index + 1)*self.batch_size]
-            }
-        )
+        test_batch = theano.function([index], acc, givens={
+            self.X: val_set_x[index*self.batch_size:(index + 1)*self.batch_size],
+            self.y: val_set_y[index*self.batch_size:(index + 1)*self.batch_size]
+        })
 
         # start training over mini-batches
         print('training cnn...')
-        epoch = 0
-        while epoch < self.n_epochs:
-            epoch += 1
+        for epoch in range(self.n_epochs):
+            batch_indices = np.arange(n_train_batches)
             if self.shuffle_batch:
-                for minibatch_index in np.random.permutation(range(n_train_batches)):
-                    train_model(minibatch_index)
-            else:
-                for minibatch_index in range(n_train_batches):
-                    train_model(minibatch_index)
-            train_losses = [test_model(i) for i in range(n_train_batches)]
-            train_perf = 1 - np.mean(train_losses)
-            val_losses = [val_model(i) for i in range(n_val_batches)]
-            val_perf = 1 - np.mean(val_losses)
-            print('epoch {}, train perf {} %, val perf {} %'.format(epoch, train_perf*100, val_perf*100))
+                np.random.shuffle(batch_indices)
+            train_res = []
+            for i in batch_indices:
+                train_res.append(train_batch(i))
+            train_res = np.mean(train_res, axis=0)
+            test_res = np.mean(list(test_batch(i) for i in range(n_val_batches)))
+            print('epoch {}, train loss {}, train perf {} %, val perf {} %'.format(
+                epoch + 1, train_res[0]*100, train_res[1]*100, test_res*100
+            ))
 
     def predict_proba(self, X):
-        # XXX
-        pass
+        n_docs = X.shape[0]
+        n_batches = (n_docs + self.batch_size - 1)//self.batch_size
+        X = np.vstack([X, np.zeros((n_batches*self.batch_size - n_docs, X.shape[1]), dtype=X.dtype)])
+        X = theano.shared(X, borrow=True)
+        index = T.lscalar()
+        predict_batch = theano.function([index], self.prediction, givens={
+            self.X: X[index*self.batch_size:(index + 1)*self.batch_size]
+        })
+        return np.vstack(predict_batch(i) for i in range(n_batches))[:n_docs]
 
 
-def shared_dataset(data_xy, borrow=True):
+def shared_dataset(data_xy):
     '''
     Function that loads the dataset into shared variables. The reason we store our dataset in shared variables is to
     allow Theano to copy it into the GPU memory (when code is run on GPU). Since copying data into the GPU is slow,
@@ -148,6 +128,6 @@ def shared_dataset(data_xy, borrow=True):
     to a large decrease in performance.
     '''
     data_x, data_y = data_xy
-    shared_x = theano.shared(np.asarray(data_x, dtype='int32'), borrow=borrow)
-    shared_y = theano.shared(np.asarray(data_y, dtype='int32'), borrow=borrow)
+    shared_x = theano.shared(data_x, borrow=True)
+    shared_y = theano.shared(data_y, borrow=True)
     return shared_x, shared_y
