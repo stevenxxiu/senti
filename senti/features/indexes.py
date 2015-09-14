@@ -8,18 +8,11 @@ __all__ = ['Index']
 
 
 class Index(BaseEstimator):
-    def __init__(self, rand_vecs, embeddings=None, include_zero=True, min_df=1):
-        self.rand_vecs = rand_vecs
-        if embeddings:
-            self.word_to_index = embeddings.word_to_index.copy()
-            self.X = embeddings.X
-            if include_zero and 0 in self.word_to_index.values():
-                for word in self.word_to_index:
-                    self.word_to_index[word] += 1
-                self.X = np.vstack([np.zeros(embeddings.X.shape[1]), self.X])
-        else:
-            self.word_to_index = {}
-            self.X = np.zeros_like(rand_vecs(1))
+    def __init__(self, rand_vec, embeddings=None, include_zero=True, min_df=1):
+        self.rand_vec = rand_vec
+        self.embeddings = embeddings
+        self.X = np.zeros((int(include_zero), rand_vec().shape[0]))
+        self.word_to_index = {}
         self.include_zero = include_zero
         self.min_df = min_df
 
@@ -28,10 +21,15 @@ class Index(BaseEstimator):
         for doc in docs:
             for word in doc:
                 dfs[word] += 1
+        vecs = []
         for word, df in dfs.items():
             if word not in self.word_to_index and df >= self.min_df:
-                self.word_to_index[word] = self.include_zero + len(self.word_to_index)
-        self.X = np.vstack([self.X, self.rand_vecs(self.include_zero + len(self.word_to_index) - self.X.shape[0])])
+                self.word_to_index[word] = self.X.shape[0] + len(vecs)
+                if self.embeddings and word in self.embeddings.word_to_index:
+                    vecs.append(self.embeddings.X[self.embeddings.word_to_index[word]])
+                else:
+                    vecs.append(self.rand_vec())
+        self.X = np.vstack([self.X] + vecs)
         return self
 
     def transform(self, docs):

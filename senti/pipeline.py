@@ -83,13 +83,14 @@ def get_cnn_pipeline(train_docs, dev_docs, dev_y, use_w2v):
         ('case_insense', MapTransform([tokenize, str.lower, normalize])),
         ('index', Index(
             # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
-            lambda num_words: np.random.uniform(-0.25, 0.25, (num_words, 300)),
+            lambda: np.random.uniform(-0.25, 0.25, 300),
             Word2Vec().load_binary('../google/GoogleNews-vectors-negative300.bin') if use_w2v else None,
             include_zero=True
         )),
         ('clippad', ClipPad(5 - 1, 56))
     ])
     input_pipeline.fit(train_docs)
+    input_pipeline.fit(dev_docs)
     pipeline = Pipeline(input_pipeline.steps + [
         ('cnn', ConvNet(
             input_pipeline.named_steps['index'].X, img_w=300, img_h=64, filter_hs=[3, 4, 5], hidden_units=[100, 3],

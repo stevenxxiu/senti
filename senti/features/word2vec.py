@@ -58,6 +58,7 @@ class Word2Vec(Word2VecBase):
                 self.word_to_index[word.decode('utf-8')] = i
                 vecs.append(np.frombuffer(sr.read(binary_len), dtype=np.float32))
             self.X = np.vstack(vecs)
+        return self
 
 
 class Doc2Vec(Word2VecBase):
