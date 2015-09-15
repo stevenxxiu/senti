@@ -59,7 +59,7 @@ def get_bag_features(dev_docs, unsup_docs, unsup_docs_inv):
 
 def get_voting_pipeline(dev_docs, unsup_docs, unsup_docs_inv):
     features = get_bag_features(dev_docs, unsup_docs, unsup_docs_inv)
-    name = 'ensemble_logreg({})'.format(','.join(name for name, estimator in features))
+    name = 'vote({})'.format(','.join('logreg({})'.format(name) for name, estimator in features))
     pipeline = Pipeline([
         ('features', FeatureUnion(features)),
         ('logreg', LogisticRegression()),
