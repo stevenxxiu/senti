@@ -8,6 +8,8 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.utils.multiclass import unique_labels
 
+from senti.rand import get_rng
+
 __all__ = ['ConvNet']
 
 
@@ -16,7 +18,7 @@ def pad_docs(X, y, batch_size, rand=False):
     if n_extra == 0:
         return
     if rand:
-        indexes = np.random.choice(X.shape[0], n_extra, replace=False)
+        indexes = get_rng().choice(X.shape[0], n_extra, replace=False)
         X_extra, y_extra = X[indexes], y[indexes]
     else:
         X_extra, y_extra = np.zeros((n_extra, X.shape[1]), dtype=X.dtype), np.zeros(n_extra, dtype=y.dtype)
@@ -71,12 +73,11 @@ class ConvNet(BaseEstimator):
             self.updates[param] = constraint(self.updates[param])
 
     def fit(self, X, y):
-        np.random.seed(3435)
         self._create_model(*self.args, **self.kwargs)
 
         # process & load into shared variables to allow theano to copy all data to GPU memory for speed
         n_train_docs, n_dev_docs = X.shape[0], self.dev_X.shape[0]
-        indexes = np.random.permutation(n_train_docs)
+        indexes = get_rng().permutation(n_train_docs)
         train_X, train_y = X[indexes], y[indexes]
         train_X, train_y, n_train_batches = pad_docs(train_X, train_y, self.batch_size, rand=True)
         dev_X, _, n_dev_batches = pad_docs(self.dev_X, np.empty(0), self.batch_size)
@@ -100,7 +101,7 @@ class ConvNet(BaseEstimator):
         for epoch in range(self.n_epochs):
             batch_indices = np.arange(n_train_batches)
             if self.shuffle_batch:
-                np.random.shuffle(batch_indices)
+                get_rng().shuffle(batch_indices)
             train_res = []
             for i in batch_indices:
                 train_res.append(train_batch(i))

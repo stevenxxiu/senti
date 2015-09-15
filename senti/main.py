@@ -6,13 +6,17 @@ import os
 import numpy as np
 
 from senti.pipeline import *
+from senti.rand import set_rng
 from senti.score import *
 from senti.utils import *
 
 
 def main():
+    # fix seed for reproducibility
+    set_rng(np.random.RandomState(1000))
+
     # fit & predict
-    os.chdir('../data/twitter')
+    os.chdir('data/twitter')
     with open('train.json') as train_sr, open('unsup.txt', encoding='ISO-8859-2') as unsup_sr, \
             open('dev.json') as dev_sr:
         train_docs = FieldExtractor(train_sr, 'text')

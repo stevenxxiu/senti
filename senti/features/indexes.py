@@ -22,7 +22,7 @@ class Index(BaseEstimator):
             for word in doc:
                 dfs[word] += 1
         vecs = []
-        for word, df in dfs.items():
+        for word, df in sorted(dfs.items()):
             if word not in self.word_to_index and df >= self.min_df:
                 self.word_to_index[word] = self.X.shape[0] + len(vecs)
                 if self.embeddings and word in self.embeddings.word_to_index:

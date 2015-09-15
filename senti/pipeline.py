@@ -1,5 +1,4 @@
 
-import numpy as np
 from lasagne.nonlinearities import identity, rectify
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
@@ -10,6 +9,7 @@ from senti.features import *
 from senti.models import *
 from senti.persist import CachedFitTransform
 from senti.preprocess import *
+from senti.rand import get_rng
 from senti.transforms import *
 
 __all__ = ['get_voting_pipeline', 'get_logreg_pipeline', 'get_cnn_pipeline']
@@ -83,7 +83,7 @@ def get_cnn_pipeline(dev_docs, dev_labels, use_w2v):
         ('case_insense', Map([tokenize, str.lower, normalize])),
         ('index', Index(
             # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
-            lambda: np.random.uniform(-0.25, 0.25, 300),
+            lambda: get_rng().uniform(-0.25, 0.25, 300),
             Word2Vec().load_binary('../google/GoogleNews-vectors-negative300.bin') if use_w2v else None,
             include_zero=True
         )),
