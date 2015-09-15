@@ -5,6 +5,7 @@ import theano
 import theano.tensor as T
 from lasagne.nonlinearities import softmax
 from sklearn.base import BaseEstimator
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 __all__ = ['ConvNet']
 
@@ -22,12 +23,13 @@ def pad_docs(X, y, batch_size, rand=False):
 
 
 class ConvNet(BaseEstimator):
-    def __init__(self, batch_size, shuffle_batch, n_epochs, dev_X, dev_y, *args, **kwargs):
+    def __init__(self, batch_size, shuffle_batch, n_epochs, dev_X, dev_y, average_classes, *args, **kwargs):
         self.batch_size = batch_size
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs
         self.dev_X = dev_X
         self.dev_y = dev_y
+        self.average_classes = average_classes
         self.classes_ = np.arange(np.max(dev_y))
         self.args = args
         self.kwargs = kwargs
@@ -60,7 +62,7 @@ class ConvNet(BaseEstimator):
         network = lasagne.layers.DenseLayer(network, hidden_units[-1], nonlinearity=softmax)
         constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
         self.network = network
-        self.prediction = lasagne.layers.get_output(self.network, deterministic=True)
+        self.prediction_probs = lasagne.layers.get_output(self.network, deterministic=True)
         self.loss = -T.mean(T.log(lasagne.layers.get_output(network))[T.arange(self.y.shape[0]), self.y])
         params = lasagne.layers.get_all_params(network, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
@@ -76,20 +78,20 @@ class ConvNet(BaseEstimator):
         indexes = np.random.permutation(n_train_docs)
         train_X, train_y = X[indexes], y[indexes]
         train_X, train_y, n_train_batches = pad_docs(train_X, train_y, self.batch_size, rand=True)
-        dev_X, dev_y, n_dev_batches = pad_docs(self.dev_X, self.dev_y, self.batch_size)
+        dev_X, _, n_dev_batches = pad_docs(self.dev_X, np.empty(0), self.batch_size)
         train_X, train_y = theano.shared(np.int32(train_X), borrow=True), theano.shared(np.int32(train_y), borrow=True)
-        dev_X, dev_y = theano.shared(np.int32(dev_X), borrow=True), theano.shared(np.int32(dev_y), borrow=True)
+        dev_X = theano.shared(np.int32(dev_X), borrow=True)
 
         # theano functions
         index = T.lscalar()
-        correct = T.eq(T.argmax(self.prediction, axis=1), self.y)
-        train_batch = theano.function([index], [self.loss, T.mean(correct)], updates=self.updates, givens={
+        predictions = T.argmax(self.prediction_probs, axis=1)
+        acc = T.mean(T.eq(predictions, self.y))
+        train_batch = theano.function([index], [self.loss, acc], updates=self.updates, givens={
             self.X: train_X[index*self.batch_size:(index + 1)*self.batch_size],
             self.y: train_y[index*self.batch_size:(index + 1)*self.batch_size]
         })
-        test_batch = theano.function([index], correct, givens={
-            self.X: dev_X[index*self.batch_size:(index + 1)*self.batch_size],
-            self.y: dev_y[index*self.batch_size:(index + 1)*self.batch_size]
+        test_batch = theano.function([index], predictions, givens={
+            self.X: dev_X[index*self.batch_size:(index + 1)*self.batch_size]
         })
 
         # start training over mini-batches
@@ -101,18 +103,19 @@ class ConvNet(BaseEstimator):
             train_res = []
             for i in batch_indices:
                 train_res.append(train_batch(i))
-            train_res = np.mean(train_res, axis=0)
-            dev_res = np.mean(np.hstack((test_batch(i) for i in range(n_dev_batches)))[:n_dev_docs])
-            print('epoch {}, train loss {}, train acc {} %, val acc {} %'.format(
-                epoch + 1, train_res[0]*100, train_res[1]*100, dev_res*100
+            train_loss, train_acc = np.mean(train_res, axis=0)
+            dev_res = np.hstack((test_batch(i) for i in range(n_dev_batches)))[:n_dev_docs]
+            print('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
+                epoch + 1, train_loss, train_acc, accuracy_score(dev_res, self.dev_y),
+                np.mean(precision_recall_fscore_support(dev_res, self.dev_y)[2][self.average_classes])
             ))
 
     def predict_proba(self, X):
         n_docs = X.shape[0]
-        X, _, n_batches = pad_docs(X, np.zeros(0), self.batch_size)
+        X, _, n_batches = pad_docs(X, np.empty(0), self.batch_size)
         X = theano.shared(np.int32(X), borrow=True)
         index = T.lscalar()
-        predict_batch = theano.function([index], self.prediction, givens={
+        predict_batch = theano.function([index], self.prediction_probs, givens={
             self.X: X[index*self.batch_size:(index + 1)*self.batch_size]
         })
         return np.vstack(predict_batch(i) for i in range(n_batches))[:n_docs]
