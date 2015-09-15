@@ -13,7 +13,8 @@ class AllCaps(BaseEstimator):
     def fit(self, docs, y=None):
         return self
 
-    def transform(self, docs):
+    @staticmethod
+    def transform(docs):
         rows = []
         for doc in docs:
             rows.append(sum(1 for token in doc if token.isupper())/len(doc))

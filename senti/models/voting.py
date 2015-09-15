@@ -12,6 +12,9 @@ class VotingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         self.named_estimators = dict(estimators)
         self.voting = voting
         self.weights = weights
+        self.le_ = None
+        self.classes_ = None
+        self.estimators_ = None
 
     def fit(self, X, y):
         if isinstance(y, np.ndarray) and len(y.shape) > 1 and y.shape[1] > 1:
@@ -34,6 +37,7 @@ class VotingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         return self
 
+    # noinspection PyTypeChecker
     def predict(self, X):
         if self.voting == 'soft':
             maj = np.argmax(self.predict_proba(X), axis=1)
