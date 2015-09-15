@@ -6,6 +6,7 @@ import theano.tensor as T
 from lasagne.nonlinearities import softmax
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.utils.multiclass import unique_labels
 
 __all__ = ['ConvNet']
 
@@ -30,7 +31,7 @@ class ConvNet(BaseEstimator):
         self.dev_X = dev_X
         self.dev_y = dev_y
         self.average_classes = average_classes
-        self.classes_ = np.arange(np.max(dev_y))
+        self.classes_ = unique_labels(dev_y)
         self.args = args
         self.kwargs = kwargs
 
