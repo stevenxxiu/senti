@@ -77,7 +77,7 @@ def get_logreg_pipeline(dev_docs, unsup_docs, unsup_docs_inv):
     return name, pipeline
 
 
-def get_cnn_pipeline(train_docs, dev_docs, dev_y, use_w2v):
+def get_cnn_pipeline(dev_docs, dev_labels, use_w2v):
     name = 'cnn(use_w2v={})'.format(use_w2v)
     input_pipeline = Pipeline([
         ('case_insense', Map([tokenize, str.lower, normalize])),
@@ -89,13 +89,13 @@ def get_cnn_pipeline(train_docs, dev_docs, dev_y, use_w2v):
         )),
         ('clip', Clip(56))
     ])
-    input_pipeline.fit(train_docs)
     input_pipeline.fit(dev_docs)
     pipeline = Pipeline(input_pipeline.steps + [
         ('cnn', ConvNet(
-            input_pipeline.named_steps['index'].X, img_w=300, img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-            dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), non_static=True,
-            shuffle_batch=True, n_epochs=8, batch_size=50, lr_decay=0.95, norm_lim=3
+            batch_size=50, shuffle_batch=True, n_epochs=8, dev_X=input_pipeline.transform(dev_docs),
+            dev_y=dev_labels, embeddings=input_pipeline.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
+            hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
+            non_static=True, lr_decay=0.95, norm_lim=3
         )),
     ])
     return name, pipeline
