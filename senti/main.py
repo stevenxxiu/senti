@@ -27,8 +27,8 @@ def main():
         dev_labels = np.fromiter(FieldExtractor(dev_sr, 'label'), 'int32')
         all_pipelines = AllPipelines(dev_docs, dev_labels, unsup_docs, unsup_docs_inv)
         # pipeline_name, pipeline = all_pipelines.get_logreg_pipeline()
-        # pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
-        pipeline_name, pipeline = all_pipelines.get_vote_ensemble_pipeline()
+        pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
+        # pipeline_name, pipeline = all_pipelines.get_vote_ensemble_pipeline()
         pipeline.fit(train_docs, train_labels)
         all_probs = pipeline.predict_proba(dev_docs)
 
