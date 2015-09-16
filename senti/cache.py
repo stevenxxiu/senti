@@ -59,8 +59,6 @@ class CachedFitTransform(ObjectProxy):
         # don't use the unwrapped object as users may also use ObjectProxy
         self.__wrapped__.__dict__, self._self_fit_hash, _ = \
             self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
-        if ignored:
-            self.__wrapped__.set_params(**ignored)
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):

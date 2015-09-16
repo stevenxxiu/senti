@@ -5,9 +5,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import Binarizer, Normalizer
 
+from senti.cache import CachedFitTransform
 from senti.features import *
 from senti.models import *
-from senti.persist import CachedFitTransform
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
