@@ -85,16 +85,15 @@ class AllPipelines:
                 Word2Vec().load_binary('../google/GoogleNews-vectors-negative300.bin') if use_w2v else None,
                 include_zero=True
             )),
-            ('clip', Clip(50))
+            ('clip', Clip(56))
         ])
         input_pipeline.fit(self.dev_docs)
         pipeline = Pipeline(input_pipeline.steps + [
             ('cnn', ConvNet(
                 batch_size=50, shuffle_batch=True, n_epochs=4, dev_X=input_pipeline.transform(self.dev_docs),
-                dev_y=self.dev_labels, average_classes=[0, 2], embeddings=input_pipeline.named_steps['index'],
-                img_h=input_pipeline.named_steps['clip'].max_len, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-                dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), non_static=True,
-                lr_decay=0.95
+                dev_y=self.dev_labels, average_classes=[0, 2], embeddings=input_pipeline.named_steps['index'], img_h=56,
+                filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify,
+                activations=(identity,), non_static=True, lr_decay=0.95, norm_lim=3
             )),
         ])
         return name, pipeline

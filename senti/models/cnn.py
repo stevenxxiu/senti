@@ -4,7 +4,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 from lasagne.nonlinearities import softmax
-from lasagne.regularization import apply_penalty, l2, l1
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.utils.multiclass import unique_labels
@@ -40,10 +39,9 @@ class ConvNet(BaseEstimator):
 
     def _create_model(
         self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, non_static,
-        lr_decay
+        lr_decay, norm_lim
     ):
         constraints = {}
-        penalty = 0
         self.X = T.imatrix('X')
         self.y = T.ivector('y')
         network = lasagne.layers.InputLayer((self.batch_size, img_h), self.X)
@@ -55,7 +53,6 @@ class ConvNet(BaseEstimator):
         for filter_h in filter_hs:
             conv = network
             conv = lasagne.layers.Conv1DLayer(conv, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear)
-            penalty += apply_penalty((conv.W, conv.b), l2)*5e-4
             conv = lasagne.layers.MaxPool1DLayer(conv, img_h + filter_h - 1, ignore_border=True)
             conv = lasagne.layers.FlattenLayer(conv)
             convs.append(conv)
@@ -63,15 +60,14 @@ class ConvNet(BaseEstimator):
         network = lasagne.layers.DropoutLayer(network, dropout_rates[0])
         for n, activation, dropout in zip(hidden_units[1:-1], activations, dropout_rates[1:]):
             network = lasagne.layers.DenseLayer(network, n, nonlinearity=activation)
+            constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
             network = lasagne.layers.DropoutLayer(network, dropout)
         network = lasagne.layers.DenseLayer(network, hidden_units[-1], nonlinearity=softmax)
-        penalty += apply_penalty((network.W, network.b), l1)*5e-4
+        constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
         self.network = network
         self.prediction_probs = lasagne.layers.get_output(self.network, deterministic=True)
-        # regularized cross-entropy
-        params = lasagne.layers.get_all_params(network, trainable=True)
         self.loss = -T.mean(T.log(lasagne.layers.get_output(network))[T.arange(self.y.shape[0]), self.y])
-        self.loss += penalty
+        params = lasagne.layers.get_all_params(network, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
         for param, constraint in constraints.items():
             self.updates[param] = constraint(self.updates[param])
