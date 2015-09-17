@@ -1,5 +1,6 @@
 
 from lasagne.nonlinearities import identity, rectify
+from sklearn.externals import joblib
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -52,7 +53,7 @@ class AllPipelines:
             ), self.memory))])),
             # ('w2v_word_avg_google', Pipeline([
             #     ('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecAverage(
-            #         pretrained_file='../google/GoogleNews-vectors-negative300.bin'
+            #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
             #     ), self.memory))
             # ])),
             # ('w2v_word_max', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecMax(
@@ -82,7 +83,7 @@ class AllPipelines:
             ('index', Index(
                 # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
                 lambda: get_rng().uniform(-0.25, 0.25, 300),
-                Word2Vec().load_binary('../google/GoogleNews-vectors-negative300.bin') if use_w2v else None,
+                joblib.load('../google/GoogleNews-vectors-negative300.pickle') if use_w2v else None,
                 include_zero=True
             )),
             ('clip', Clip(56))

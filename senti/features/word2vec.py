@@ -40,26 +40,6 @@ class Word2Vec(Word2VecBase):
             self.X = np.vstack(vecs)
         return self
 
-    def load_binary(self, name):
-        with open(name, 'rb') as sr:
-            header = sr.readline()
-            vocab_size, layer1_size = tuple(map(int, header.split()))
-            binary_len = np.float32().itemsize*layer1_size
-            vecs = []
-            for i in range(vocab_size):
-                word = bytearray()
-                while True:
-                    ch = sr.read(1)
-                    if ch == b' ':
-                        break
-                    if ch != b'\n':
-                        # ignore newlines in front of words (some binary files have them)
-                        word.append(ch[0])
-                self.word_to_index[word.decode('utf-8')] = i
-                vecs.append(np.frombuffer(sr.read(binary_len), dtype=np.float32))
-            self.X = np.vstack(vecs)
-        return self
-
 
 class Doc2Vec(Word2VecBase):
     def __init__(self, **kwargs):
@@ -110,15 +90,12 @@ class Doc2VecTransform(BaseEstimator):
 
 
 class Word2VecTransform(BaseEstimator):
-    def __init__(self, unsup_docs=(), pretrained_file=None, **kwargs):
+    def __init__(self, unsup_docs=(), word2vec=None, **kwargs):
         self.unsup_docs = unsup_docs
-        self.word2vec = Word2Vec(**kwargs)
-        self.pretrained = bool(pretrained_file)
-        if pretrained_file:
-            self.word2vec.load_binary(pretrained_file)
+        self.word2vec = word2vec or Word2Vec(**kwargs)
 
     def fit(self, docs, y=None):
-        if not self.pretrained:
+        if not self.word2vec.word_to_index:
             self.word2vec.fit(itertools.chain(docs, self.unsup_docs))
 
 
