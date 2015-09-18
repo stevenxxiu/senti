@@ -12,16 +12,16 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
+from senti.utils import HeadSr
 
 __all__ = ['AllPipelines']
 
 
 class AllPipelines:
-    def __init__(self, dev_docs, dev_labels, unsup_docs, unsup_docs_inv):
+    def __init__(self, dev_docs, dev_labels, unsup_docs):
         self.dev_docs = dev_docs
         self.dev_labels = dev_labels
         self.unsup_docs = unsup_docs
-        self.unsup_docs_inv = unsup_docs_inv
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def get_bag_features(self):
@@ -61,7 +61,7 @@ class AllPipelines:
             #     size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             # ), self.memory))])),
             # ('w2v_word_inv', Pipeline([('tokenizer', case_insense), ('feature', CachedFitTransform(Word2VecInverse(
-            #     case_insense.transform(self.dev_docs), case_insense.transform(self.unsup_docs_inv), cbow=0,
+            #     case_insense.transform(self.dev_docs), case_insense.transform(HeadSr(self.unsup_sr, 10**5)), cbow=0,
             #     size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             # ), self.memory))])),
         ]
