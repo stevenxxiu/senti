@@ -98,6 +98,9 @@ class ConvNet(BaseEstimator):
 
         # start training over mini-batches
         print('training cnn...')
+        best_perf = 0
+        params = lasagne.layers.get_all_params(self.network)
+        best_params = None
         for epoch in range(self.n_epochs):
             batch_indices = np.arange(n_train_batches)
             if self.shuffle_batch:
@@ -107,10 +110,16 @@ class ConvNet(BaseEstimator):
                 train_res.append(train_batch(i))
             train_loss, train_acc = np.mean(train_res, axis=0)
             dev_res = np.hstack((test_batch(i) for i in range(n_dev_batches)))[:n_dev_docs]
+            dev_acc = accuracy_score(dev_res, self.dev_y)
+            dev_f1 = np.mean(precision_recall_fscore_support(dev_res, self.dev_y)[2][self.average_classes])
+            if dev_f1 >= best_perf:
+                best_perf = dev_f1
+                best_params = dict((param, param.get_value()) for param in params)
             print('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
-                epoch + 1, train_loss, train_acc, accuracy_score(dev_res, self.dev_y),
-                np.mean(precision_recall_fscore_support(dev_res, self.dev_y)[2][self.average_classes])
+                epoch + 1, train_loss, train_acc, dev_acc, dev_f1
             ))
+        for param, value in best_params.items():
+            param.set_value(value)
 
     def predict_proba(self, X):
         n_docs = X.shape[0]
