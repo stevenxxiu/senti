@@ -91,7 +91,7 @@ class AllPipelines:
         input_pipeline.fit(self.dev_docs)
         pipeline = Pipeline(input_pipeline.steps + [
             ('cnn', ConvNet(
-                batch_size=50, shuffle_batch=True, n_epochs=4, dev_X=input_pipeline.transform(self.dev_docs),
+                batch_size=50, shuffle_batch=True, n_epochs=16, dev_X=input_pipeline.transform(self.dev_docs),
                 dev_y=self.dev_labels, average_classes=[0, 2], embeddings=input_pipeline.named_steps['index'], img_h=56,
                 filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify,
                 activations=(identity,), non_static=True, lr_decay=0.95, norm_lim=3

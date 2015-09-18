@@ -7,6 +7,7 @@ __all__ = ['normalize', 'tokenize']
 def normalize(text):
     text = re.sub(r'\S{,4}://\S+', '_URL', text)
     text = re.sub(r'\$[\d\.]+', '_MONEY', text)
+    text = re.sub(r'(RT\s*)?@\w+:?', '_USER', text)
     return text.strip()
 
 
