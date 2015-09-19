@@ -248,10 +248,10 @@ def simple_tokenize(text):
 
     # BTO: our POS tagger wants "ur" and "you're" to both be one token.
     # Uncomment to get "you 're"
-    # split_str = []
-    # for tok in zipped_str:
-    #     split_str.extend(split_token(tok))
-    # zipped_str = split_str
+    split_str = []
+    for tok in zipped_str:
+        split_str.extend(split_token(tok))
+    zipped_str = split_str
 
     return zipped_str
 
