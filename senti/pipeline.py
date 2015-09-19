@@ -104,7 +104,7 @@ class AllPipelines:
         name = 'svm({})'.format(','.join(name for name, estimator in features))
         pipeline = Pipeline([
             ('features', FeatureUnion(features)),
-            ('svm', SVC(probability=True)),
+            ('svm', SVC(kernel='linear', C=0.005, probability=True)),
         ])
         return name, pipeline
 
