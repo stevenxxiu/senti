@@ -4,12 +4,14 @@ import unicodedata
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from senti.base import ReiterableMixin
+
 __all__ = ['Elongations']
 
 
-class Elongations(BaseEstimator):
+class Elongations(BaseEstimator, ReiterableMixin):
     '''
-    Proportion of tokens with elongated letters.
+    Elongated vowels. Other possible constraints: letters, none.
     '''
 
     @staticmethod
@@ -21,12 +23,12 @@ class Elongations(BaseEstimator):
         return unicodedata.category(c)[0] == 'L'
 
     @staticmethod
-    def is_elongated(token, condition=None):
-        if len(token) >= 3:
+    def is_elongated(word, condition=None):
+        if len(word) >= 3:
             condition = condition or (lambda x: True)
-            prevprev, prev = token[:2]
-            for i in range(2, len(token)):
-                char = token[i]
+            prevprev, prev = word[:2]
+            for i in range(2, len(word)):
+                char = word[i]
                 if condition(char) and char == prev and char == prevprev:
                     return True
                 prevprev, prev = prev, char
@@ -35,13 +37,6 @@ class Elongations(BaseEstimator):
     def fit(self, docs, y=None):
         return self
 
-    def transform(self, docs):
-        vecs = []
+    def _transform(self, docs):
         for doc in docs:
-            vec = np.array([
-                sum(self.is_elongated(t, self.is_vowel) for t in doc),
-                sum(self.is_elongated(t, self.is_letter) for t in doc),
-                sum(map(self.is_elongated, doc)),
-            ])/len(doc)
-            vecs.append(vec)
-        return np.vstack(vecs)
+            yield np.fromiter((self.is_elongated(word, self.is_vowel) for word in doc), dtype='int32')

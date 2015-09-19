@@ -2,27 +2,25 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from senti.base import ReiterableMixin
+
 __all__ = ['Punctuations']
 
 
-class Punctuations(BaseEstimator):
+class Punctuations(BaseEstimator, ReiterableMixin):
     '''
-    Proportion of tokens with punctuation marks.
+    Proportion of words with punctuation marks.
     '''
 
     def fit(self, docs, y=None):
         return self
 
     @staticmethod
-    def transform(docs):
-        vecs = []
+    def _transform(docs):
         for doc in docs:
-            charsets = tuple(frozenset(token) for token in doc if token)
-            vec = np.array([
-                sum(chars == {'!'} for chars in charsets)/len(doc),
-                sum(chars == {'?'} for chars in charsets)/len(doc),
-                sum(chars == {'!', '?'} for chars in charsets)/len(doc),
-                int(bool(charsets[-1] <= {'!', '?'}))
+            charsets = tuple(frozenset(word) for word in doc if word)
+            yield np.hstack([
+                np.fromiter((chars == {'!'} for chars in charsets), dtype='bool'),
+                np.fromiter((chars == {'!'} for chars in charsets), dtype='bool'),
+                np.fromiter((chars == {'!', '?'} for chars in charsets), dtype='bool'),
             ])
-            vecs.append(vec)
-        return np.vstack(vecs)

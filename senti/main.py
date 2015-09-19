@@ -27,9 +27,9 @@ def main():
         set_rng(np.random.RandomState(1000))
 
         # train
-        all_pipelines = AllPipelines(dev_docs, dev_labels, unsup_docs)
-        # pipeline_name, pipeline = all_pipelines.get_logreg_pipeline()
-        pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
+        all_pipelines = AllPipelines(unsup_docs, dev_docs, dev_labels, test_docs)
+        pipeline_name, pipeline = all_pipelines.get_svm_pipeline()
+        # pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
         # pipeline_name, pipeline = all_pipelines.get_vote_ensemble_pipeline()
         pipeline.fit(train_docs, train_labels)
         classes = pipeline.classes_
@@ -41,7 +41,7 @@ def main():
         for name, docs, labels in test_data:
             os.makedirs('results/{}'.format(name), exist_ok=True)
             all_probs = pipeline.predict_proba(docs)
-            with open('{}.json'.format(name)) as sr,\
+            with open('{}.json'.format(name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
                 for line, probs in zip(sr, all_probs):
                     indexes = indexes_of(classes, [0, 1, 2])

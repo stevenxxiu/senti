@@ -1,10 +1,12 @@
 
+import itertools
 import json
 import sys
 
 import numpy as np
+from scipy import sparse
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'indexes_of']
+__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'indexes_of', 'sparse_sum', 'vstack']
 
 
 class Tee:
@@ -68,3 +70,19 @@ def indexes_of(x, y):
     sorted_x = x[index]
     sorted_index = np.searchsorted(sorted_x, y)
     return np.take(index, sorted_index, mode='clip')
+
+
+def sparse_sum(X, axis):
+    if axis == 0:
+        n = X.shape[0]
+        return sparse.csc_matrix((np.ones(n), (np.zeros(n), np.arange(n))))*X
+    elif axis == 1:
+        n = X.shape[1]
+        return X*sparse.csc_matrix((np.ones(n), (np.zeros(n), np.arange(n))))
+
+
+def vstack(Xs):
+    Xs = iter(Xs)
+    X = next(Xs)
+    Xs = itertools.chain([X], Xs)
+    return sparse.vstack(Xs) if X.ndim == 2 else np.vstack(Xs)

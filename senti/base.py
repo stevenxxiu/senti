@@ -7,6 +7,9 @@ class Reiterable:
         self.func = func
         self.docs = docs
 
+    def __hash__(self):
+        return hash((self.docs, self.func))
+
     def __eq__(self, other):
         return self.docs == other.docs and self.func == other.func
 

@@ -1,10 +1,10 @@
 
-import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.transforms.base import ReiterableMixin
+from senti.base import ReiterableMixin
+from senti.utils import sparse_sum, vstack
 
-__all__ = ['Map', 'Clip']
+__all__ = ['Map', 'Index', 'Count', 'Proportion', 'Clip']
 
 
 class Map(BaseEstimator, ReiterableMixin):
@@ -21,6 +21,35 @@ class Map(BaseEstimator, ReiterableMixin):
             yield doc
 
 
+class Index(BaseEstimator):
+    def __init__(self, i):
+        self.i = i
+
+    def fit(self, docs, y=None):
+        return self
+
+    def transform(self, docs):
+        return vstack(doc[self.i] for doc in docs)
+
+
+class Count(BaseEstimator):
+    def fit(self, docs, y=None):
+        return self
+
+    @staticmethod
+    def transform(docs):
+        return vstack(sparse_sum(doc, axis=0) for doc in docs)
+
+
+class Proportion(BaseEstimator):
+    def fit(self, docs, y=None):
+        return self
+
+    @staticmethod
+    def transform(docs):
+        return vstack(sparse_sum(doc, axis=0)/doc.shape[0] for doc in docs)
+
+
 class Clip(BaseEstimator):
     def __init__(self, max_len):
         self.max_len = max_len
@@ -29,9 +58,4 @@ class Clip(BaseEstimator):
         return self
 
     def transform(self, docs):
-        vecs = []
-        for doc in docs:
-            vec = np.zeros(self.max_len)
-            vec[:min(len(doc), self.max_len)] = doc[:self.max_len]
-            vecs.append(vec)
-        return np.vstack(vecs)
+        return vstack(doc[:self.max_len] for doc in docs)

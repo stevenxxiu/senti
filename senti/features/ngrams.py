@@ -1,43 +1,39 @@
 
-from collections import Counter
-
 import numpy as np
 from scipy import sparse
 from sklearn.base import BaseEstimator
 
+from senti.base import ReiterableMixin
+
 __all__ = ['CharNGrams', 'WordNGrams']
 
 
-class NGramsBase(BaseEstimator):
+class NGramsBase(BaseEstimator, ReiterableMixin):
     def __init__(self):
-        self.ngrams = {}
-        self.counts = None
+        self.ngram_to_index = {}
 
     def _iter_ngrams(self, doc):
         raise NotImplementedError
 
     def fit(self, docs, y=None):
-        ngrams = Counter()
         for doc in docs:
             for ngram in self._iter_ngrams(doc):
-                ngrams[ngram] += 1
-        counts = []
-        for i, (ngram, count) in enumerate(ngrams.items()):
-            self.ngrams[ngram] = i
-            counts.append(count)
-        self.counts = np.array(counts)
+                if ngram not in self.ngram_to_index:
+                    self.ngram_to_index[ngram] = len(self.ngram_to_index)
         return self
 
-    def transform(self, docs):
-        data, row, col = [], [], []
-        i = -1
-        for i, doc in enumerate(docs):
-            for ngram in self._iter_ngrams(doc):
-                if ngram in self.ngrams:
+    def _transform(self, docs):
+        for doc in docs:
+            row, col = [], []
+            # include 0 rows so the shape is right
+            i = -1
+            for i, ngram in enumerate(self._iter_ngrams(doc)):
+                if ngram in self.ngram_to_index:
                     row.append(i)
-                    col.append(self.ngrams[ngram])
-                    data.append(self.counts[col[-1]])
-        return sparse.coo_matrix((data, (row, col)), shape=(i + 1, self.counts.shape[0]), dtype=np.float64)
+                    col.append(self.ngram_to_index[ngram])
+            yield sparse.coo_matrix(
+                (np.ones(len(row)), (row, col)), shape=(i + 1, len(self.ngram_to_index)), dtype='float32'
+            )
 
 
 class WordNGrams(NGramsBase):
@@ -58,15 +54,15 @@ class WordNGrams(NGramsBase):
 
 
 class CharNGrams(NGramsBase):
-    def __init__(self, n, tokens_only=False):
+    def __init__(self, n, words_only=False):
         super().__init__()
         self.n = n
-        self.tokens_only = tokens_only
+        self.words_only = words_only
 
     def _iter_ngrams(self, doc):
-        if not self.tokens_only:
+        if not self.words_only:
             doc = [' '.join(doc)]
-        for token in doc:
-            for i in range(len(token) - self.n + 1):
-                ngram = token[i:i + self.n]
+        for word in doc:
+            for i in range(len(word) - self.n + 1):
+                ngram = word[i:i + self.n]
                 yield tuple(ngram)

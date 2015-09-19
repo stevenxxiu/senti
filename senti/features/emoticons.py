@@ -1,9 +1,10 @@
 
 import re
-from collections import Counter
 
 import numpy as np
 from sklearn.base import BaseEstimator
+
+from senti.base import ReiterableMixin
 
 __all__ = ['Emoticons']
 
@@ -35,14 +36,16 @@ HAPPY_RMOUTHS = frozenset(r'([{')
 UNHAPPY_MOUTHS = HAPPY_RMOUTHS | ALWAYS_UNHAPPY
 UNHAPPY_RMOUTHS = HAPPY_MOUTHS | ALWAYS_UNHAPPY
 
-HAPPY_SYMBOL = 'EMOT+'
-UNHAPPY_SYMBOL = 'EMOT-'
-NEUTRAL_SYMBOL = 'NA'
+
+class Symbol:
+    UNHAPPY = 0
+    NEUTRAL = 1
+    HAPPY = 2
 
 
-class Emoticons(BaseEstimator):
+class Emoticons(BaseEstimator, ReiterableMixin):
     '''
-    Proportion of emoticons.
+    Positive and negative emoticons.
     '''
 
     @staticmethod
@@ -50,28 +53,19 @@ class Emoticons(BaseEstimator):
         if match:
             groups = match.groupdict()
             if groups['mouth'] in HAPPY_MOUTHS:
-                return HAPPY_SYMBOL
+                return Symbol.HAPPY
             elif groups['mouth'] in UNHAPPY_MOUTHS:
-                return UNHAPPY_SYMBOL
+                return Symbol.UNHAPPY
             elif groups['rmouth'] in HAPPY_RMOUTHS:
-                return HAPPY_SYMBOL
+                return Symbol.HAPPY
             elif groups['rmouth'] in UNHAPPY_RMOUTHS:
-                return UNHAPPY_SYMBOL
-        return NEUTRAL_SYMBOL
+                return Symbol.UNHAPPY
+        return Symbol.NEUTRAL
 
     def fit(self, docs, y=None):
         return self
 
-    def transform(self, docs):
-        vecs = []
+    def _transform(self, docs):
         for doc in docs:
-            counts = Counter()
-            symbol = None
-            for token in doc:
-                symbol = self.assess_match(emoticon_re.match(token))
-                counts[symbol] += 1
-            vecs.append(np.array([
-                counts[HAPPY_SYMBOL], counts[UNHAPPY_SYMBOL], counts[NEUTRAL_SYMBOL],
-                int(symbol == HAPPY_SYMBOL), int(symbol == UNHAPPY_SYMBOL), int(symbol == NEUTRAL_SYMBOL)
-            ]))
-        return np.vstack(vecs)
+            matches = np.fromiter((self.assess_match(emoticon_re.match(word)) for word in doc), dtype='int32')
+            yield np.hstack([matches == Symbol.UNHAPPY, matches == Symbol.NEUTRAL, matches == Symbol.HAPPY])

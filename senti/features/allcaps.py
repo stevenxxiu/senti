@@ -2,20 +2,20 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from senti.base import ReiterableMixin
+
 __all__ = ['AllCaps']
 
 
-class AllCaps(BaseEstimator):
+class AllCaps(BaseEstimator, ReiterableMixin):
     '''
-    Proportion of tokens with fully capitalised letters.
+    Fully capitalised letters.
     '''
 
     def fit(self, docs, y=None):
         return self
 
     @staticmethod
-    def transform(docs):
-        rows = []
+    def _transform(docs):
         for doc in docs:
-            rows.append(sum(1 for token in doc if token.isupper())/len(doc))
-        return np.vstack(rows)
+            yield np.fromiter((word.isupper() for word in doc), dtype='int32')

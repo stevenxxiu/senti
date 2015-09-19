@@ -4,10 +4,10 @@ from collections import Counter
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['Index']
+__all__ = ['WordIndex']
 
 
-class Index(BaseEstimator):
+class WordIndex(BaseEstimator):
     def __init__(self, rand_vec, embeddings=None, include_zero=True, min_df=1):
         self.rand_vec = rand_vec
         self.embeddings = embeddings
@@ -34,7 +34,4 @@ class Index(BaseEstimator):
 
     def transform(self, docs):
         for doc in docs:
-            indexes = []
-            for word in doc:
-                indexes.append(self.word_to_index.get(word, 0))
-            yield indexes
+            yield np.fromiter((self.word_to_index.get(word, 0) for word in doc), dtype='int32')
