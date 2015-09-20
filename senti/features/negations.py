@@ -16,7 +16,7 @@ NEGATION_RE = re.compile(r'''(?:^(?:
 
 class Negations(BaseEstimator, ReiterableMixin):
     '''
-    Appends '_NEG' to words in negated contexts.
+    Prepends 'neg_' to words in negated contexts.
     '''
 
     @staticmethod
