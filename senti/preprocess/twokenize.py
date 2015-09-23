@@ -75,14 +75,14 @@ embedded_apostrophe = things_that_split_words + r"+['’′]" + things_that_spli
 
 #  Emoticons
 # myleott: in Python the (?iu) flags affect the whole expression
-# normal_eyes = "(?iu)[:=]" # 8 and x are eyes but cause problems
-normal_eyes = "[:=]" # 8 and x are eyes but cause problems
+# normal_eyes = "(?iu)[:=]"  # 8 and x are eyes but cause problems
+normal_eyes = "[:=]"  # 8 and x are eyes but cause problems
 wink = "[;]"
-nose_area = "(?:|-|[^a-zA-Z0-9 ])" # doesn't get :'-(
+nose_area = "(?:|-|[^a-zA-Z0-9 ])"  # doesn't get :'-(
 happy_mouths = r"[D\)\]\}]+"
 sad_mouths = r"[\(\[\{]+"
 tongue = "[pPd3]+"
-other_mouths = r"(?:[oO]+|[/\\]+|[vV]+|[Ss]+|[|]+)" # remove forward slash if http://'s aren't cleaned
+other_mouths = r"(?:[oO]+|[/\\]+|[vV]+|[Ss]+|[|]+)"  # remove forward slash if http://'s aren't cleaned
 
 # mouth repetition examples:
 # @aliciakeys Put it in a love song :-))
@@ -118,7 +118,7 @@ emoticon = regex_or(
     regex_or("(?<=(?: ))", "(?<=(?:^))") + regex_or(sad_mouths, happy_mouths, other_mouths) + nose_area +
     regex_or(normal_eyes, wink) + "(?:<|&lt;)?",
 
-    #inspired by http://en.wikipedia.org/wiki/User:Scapler/emoticons#East_Asian_style
+    # inspired by http://en.wikipedia.org/wiki/User:Scapler/emoticons#East_Asian_style
     east_emote.replace("2", "1", 1), basic_face,
     # iOS 'emoji' characters (some smileys, some symbols) [\ue001-\uebbb]
     # TODO should try a big precompiled lexicon from Wikipedia, Dan Ramage told me (BTO) he does this
@@ -128,7 +128,7 @@ emoticon = regex_or(
     oo_emote
 )
 
-hearts = "(?:<+/?3+)+" #the other hearts are in decorations
+hearts = "(?:<+/?3+)+"  # the other hearts are in decorations
 
 arrows = regex_or(r"(?:<*[-―—=]*>+|<+[-―—=]*>*)", "[\u2190-\u21ff]+")
 
@@ -142,8 +142,8 @@ arrows = regex_or(r"(?:<*[-―—=]*>+|<+[-―—=]*>*)", "[\u2190-\u21ff]+")
 
 # This also gets #1 #40 which probably aren't hashtags .. but good as tokens.
 # If you want good hashtag identification, use a different regex.
-hashtag = "#[a-zA-Z0-9_]+"  #optional: lookbehind for \b
-#optional: lookbehind for \b, max length 15
+hashtag = "#[a-zA-Z0-9_]+"  # optional: lookbehind for \b
+# optional: lookbehind for \b, max length 15
 at_mention = "[@＠][a-zA-Z0-9_]+"
 
 # I was worried this would conflict with at-mentions
@@ -154,13 +154,13 @@ email = regex_or("(?<=(?:\W))", "(?<=(?:^))") + r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-
 
 # We will be tokenizing using these regexps as delimiters
 # Additionally, these things are "protected", meaning they shouldn't be further split themselves.
-protected  = re.compile(
+protected = re.compile(
     regex_or(
         hearts,
         url,
         email,
         time_like,
-        #num_num,
+        # num_num,
         number_with_commas,
         num_comb,
         emoticon,
@@ -184,18 +184,20 @@ protected  = re.compile(
 # I remember it causing lots of trouble in the past as well.  Would be good to revisit or eliminate.
 
 # Note the 'smart quotes' (http://en.wikipedia.org/wiki/Smart_quotes)
-# edge_punct_chars = r"'\"“”‘’«»{}\(\)\[\]\*&" #add \\p{So}? (symbols)
-edge_punct_chars = "'\"“”‘’«»{}\\(\\)\\[\\]\\*&" #add \\p{So}? (symbols)
+# edge_punct_chars = r"'\"“”‘’«»{}\(\)\[\]\*&"  # add \\p{So}? (symbols)
+edge_punct_chars = "'\"“”‘’«»{}\\(\\)\\[\\]\\*&"  # add \\p{So}? (symbols)
 edge_punct = "[" + edge_punct_chars + "]"
-not_edge_punct = "[a-zA-Z0-9]" # content characters
+not_edge_punct = "[a-zA-Z0-9]"  # content characters
 off_edge = r"(^|$|:|;|\s|\.|,)"  # colon here gets "(hello):" ==> "( hello ):"
 edge_punct_left = re.compile(off_edge + "("+edge_punct+"+)("+not_edge_punct+")", re.UNICODE)
 edge_punct_Right = re.compile("("+not_edge_punct+")("+edge_punct+"+)" + off_edge, re.UNICODE)
+
 
 def split_edge_punct(input_):
     input_ = edge_punct_left.sub(r"\1\2 \3", input_)
     input_ = edge_punct_Right.sub(r"\1 \2\3", input_)
     return input_
+
 
 # The main work of tokenizing a tweet.
 def simple_tokenize(text):
@@ -214,7 +216,7 @@ def simple_tokenize(text):
     bad_spans = []
     for match in protected.finditer(split_punct_text):
         # The spans of the "bads" should not be split.
-        if match.start() != match.end(): #unnecessary?
+        if match.start() != match.end():  # unnecessary?
             bads.append([split_punct_text[match.start():match.end()]])
             bad_spans.append((match.start(), match.end()))
 
@@ -255,6 +257,7 @@ def simple_tokenize(text):
 
     return zipped_str
 
+
 def add_all_nonempty(master, smaller):
     for s in smaller:
         strim = s.strip()
@@ -262,9 +265,11 @@ def add_all_nonempty(master, smaller):
             master.append(strim)
     return master
 
+
 # "foo   bar " => "foo bar"
 def squeeze_whitespace(input_):
     return whitespace.sub(" ", input_).strip()
+
 
 # Final pass tokenization based on special patterns
 def split_token(token):
@@ -272,6 +277,7 @@ def split_token(token):
     if m:
         return [m.group(1), m.group(2)]
     return [token]
+
 
 # Assume 'text' has no HTML escaping.
 def tokenize(text):
