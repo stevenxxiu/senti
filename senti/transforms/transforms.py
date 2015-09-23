@@ -1,4 +1,5 @@
 
+import numpy as np
 from scipy import sparse
 from sklearn.base import BaseEstimator
 
@@ -59,4 +60,4 @@ class Clip(BaseEstimator):
         return self
 
     def transform(self, docs):
-        return vstack(doc[:self.max_len] for doc in docs)
+        return vstack(np.hstack([doc[:self.max_len], np.zeros(self.max_len - len(doc))]) for doc in docs)
