@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from scipy import sparse
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'indexes_of', 'sparse_sum', 'vstack']
+__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'sparse_sum', 'vstack']
 
 
 class Tee:
@@ -60,16 +60,6 @@ class HeadSr(PicklableSr):
         self.sr.seek(0)
         for i, line in zip(range(self.n), self.sr):
             yield line
-
-
-def indexes_of(x, y):
-    '''
-    Find the indexes of y in x.
-    '''
-    index = np.argsort(x)
-    sorted_x = x[index]
-    sorted_index = np.searchsorted(sorted_x, y)
-    return np.take(index, sorted_index, mode='clip')
 
 
 def sparse_sum(X, axis):

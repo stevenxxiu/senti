@@ -5,16 +5,16 @@ from contextlib import closing
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
-from sklearn import preprocessing
 from sklearn.metrics import accuracy_score, auc, precision_recall_fscore_support, roc_curve
+from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
-from senti.utils import Tee, indexes_of
+from senti.utils import Tee
 
 __all__ = ['write_score']
 
 
 def write_score(name, gold_labels, pred_scores, classes, average_classes):
-    gold_scores = preprocessing.label_binarize(gold_labels, classes)
+    gold_scores = LabelBinarizer().fit(classes).transform(gold_labels)
     pred_labels = classes[np.argmax(pred_scores, axis=1)]
 
     with closing(Tee('{}.txt'.format(name), 'w')):
@@ -22,7 +22,7 @@ def write_score(name, gold_labels, pred_scores, classes, average_classes):
         for t in zip(classes, precision, recall, fscore):
             print('{}: P={:.2f}, R={:.2f}, F1={:.2f}'.format(*t))
         print('Accuracy: {:.4f}'.format(accuracy_score(gold_labels, pred_labels)))
-        print('F1 average: {:.4f}'.format(np.mean(fscore[indexes_of(classes, average_classes)])))
+        print('F1 average: {:.4f}'.format(np.mean(fscore[LabelEncoder().fit(classes).transform(average_classes)])))
 
     with PdfPages('{}.pdf'.format(name)) as pdf:
         fpr = {}

@@ -4,6 +4,7 @@ import json
 import os
 
 import numpy as np
+from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
 from senti.pipeline import *
 from senti.rand import set_rng
@@ -39,14 +40,19 @@ def main():
         # predict & write results
         for name, docs, labels in test_data:
             os.makedirs('results/{}'.format(name), exist_ok=True)
-            all_probs = pipeline.predict_proba(docs)
+            try:
+                all_probs = pipeline.predict_proba(docs)
+            except AttributeError:
+                all_probs = LabelBinarizer().fit(classes).transform(pipeline.predict(docs))
             with open('{}.json'.format(name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
                 for line, probs in zip(sr, all_probs):
-                    indexes = indexes_of(classes, [0, 1, 2])
+                    indexes = LabelEncoder().fit(classes).transform([0, 1, 2])
                     results_sr.write(json.dumps({
                         'id': json.loads(line)['id'], 'label': int(classes[np.argmax(probs)]),
-                        'prob_neg': probs[indexes[0]], 'prob_nt': probs[indexes[1]], 'prob_pos': probs[indexes[2]]
+                        'prob_neg': float(probs[indexes[0]]),
+                        'prob_nt': float(probs[indexes[1]]),
+                        'prob_pos': float(probs[indexes[2]]),
                     }) + '\n')
             print('{} data: '.format(name))
             write_score('results/{}/{}'.format(name, pipeline_name), labels, all_probs, classes, (0, 2))
