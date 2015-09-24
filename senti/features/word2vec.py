@@ -36,7 +36,7 @@ class Word2Vec(Word2VecBase):
             for i, line in enumerate(itertools.islice(sr, 1, None)):
                 parts = line.split(' ')
                 self.word_to_index[parts[0]] = i
-                vecs.append(np.fromiter(parts[1:-1], np.float64))
+                vecs.append(np.fromiter(parts[1:-1], np.float32))
             self.X = np.vstack(vecs)
         return self
 
@@ -45,17 +45,18 @@ class Doc2Vec(Word2VecBase):
     def __init__(self, **kwargs):
         super().__init__(sentence_vectors=1, **kwargs)
         self.X = None
+        self.prefix = '_*/'
 
     def fit(self, docs):
         with open('sentences.txt', 'w', encoding='utf-8') as sr:
             for i, doc in enumerate(docs):
-                sr.write('_*{} {}\n'.format(i, ' '.join(doc)))
+                sr.write('{}{} {}\n'.format(self.prefix, i, ' '.join(doc)))
         self.run()
         with open('sentence_vecs.txt', encoding='ISO-8859-1') as sr:
             vecs = []
             for line in itertools.islice(sr, 1, None):
-                if line.startswith('_*'):
-                    vecs.append(np.fromiter(line.split()[1:], np.float64))
+                if line.startswith(self.prefix):
+                    vecs.append(np.fromiter(line.split()[1:], np.float32))
             self.X = np.vstack(vecs)
         return self
 
@@ -126,7 +127,7 @@ class Doc2VecTransform(Doc2VecFeatureBase):
             i = self.corporas.index(docs)
         except IndexError:
             raise ValueError('docs were not fitted')
-        return self.word2vec.X[range(self._corporas_start[i], self._corporas_end[i])]
+        return self.word2vec.X[self._corporas_start[i]:self._corporas_end[i]]
 
 
 class Word2VecInverse(Doc2VecFeatureBase):
