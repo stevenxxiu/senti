@@ -27,18 +27,18 @@ class AllPipelines:
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def get_logreg_pipeline(self):
-        case_sense = Map([tokenize, normalize, unescape])
+        tokenize_sense = Map([tokenize, normalize, unescape])
         features = [
             # ('w2v_doc', CachedFitTransform(Pipeline([
-            #     ('tokenizer', case_sense),
+            #     ('tokenize', tokenize_sense),
             #     ('feature', Doc2VecTransform(
-            #         list(case_sense.transform(docs) for docs in (
+            #         list(tokenize_sense.transform(docs) for docs in (
             #             HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
             #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     )),
             # ]), self.memory)),
             ('w2v_word_avg_google', CachedFitTransform(Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', (Word2VecAverage(
                     word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
                 )))
@@ -52,79 +52,79 @@ class AllPipelines:
         return name, pipeline
 
     def get_svm_pipeline(self):
-        case_sense = Map([tokenize, normalize, unescape])
-        case_insense = Map([tokenize, str.lower, normalize, unescape])
-        no_norm = Map([tokenize, str.lower, unescape])
+        tokenize_sense = Map([tokenize, normalize, unescape])
+        tokenize_insense = Map([tokenize, str.lower, normalize, unescape])
+        tokenize_insense_raw = Map([tokenize, str.lower, unescape])
         features = [
             ('word_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
-                ('tokenizer', case_insense),
+                ('tokenize', tokenize_insense),
                 ('negations', Negations()),
                 ('ngrams', WordNGrams(n)),
                 ('count', Count()),
                 ('binarize', Binarizer(copy=False)),
             ]), self.memory)) for n in range(1, 4 + 1)])),
             ('char_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
-                ('tokenizer', case_insense),
+                ('tokenize', tokenize_insense),
                 ('ngrams', CharNGrams(n)),
                 ('proportion', Proportion()),
             ]), self.memory)) for n in range(3, 5 + 1)])),
             ('all_caps', Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', AllCaps()),
                 ('proportion', Proportion()),
             ])),
             ('punctuations', Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', Punctuations()),
                 ('proportion', Proportion()),
             ])),
             ('elongated', Pipeline([
-                ('tokenizer', no_norm),
+                ('tokenize', tokenize_insense_raw),
                 ('feature', Elongations()),
                 ('proportion', Proportion()),
             ])),
             ('emoticons', Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', Emoticons()),
                 ('proportion', Proportion()),
             ])),
             ('emoticon_last', Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', Emoticons()),
                 ('last', Index(-1)),
             ])),
             ('w2v_doc', CachedFitTransform(Pipeline([
-                ('tokenizer', case_sense),
+                ('tokenize', tokenize_sense),
                 ('feature', Doc2VecTransform(
-                    list(case_sense.transform(docs) for docs in (
+                    list(tokenize_sense.transform(docs) for docs in (
                         HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
                     )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 )),
             ]), self.memory)),
             # ('w2v_word_avg', CachedFitTransform(Pipeline([
-            #     ('tokenizer', case_sense),
+            #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(
-            #         case_sense.transform(HeadSr(self.unsup_docs, 10**6)),
+            #         tokenize_sense.transform(HeadSr(self.unsup_docs, 10**6)),
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     )),
             # ]), self.memory)),
             # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
-            #     ('tokenizer', case_sense),
+            #     ('tokenize', tokenize_sense),
             #     ('feature', (Word2VecAverage(
             #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
             #     )))
             # ]), self.memory)),
             # ('w2v_word_max', CachedFitTransform(Pipeline([
-            #     ('tokenizer', case_sense),
+            #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(
-            #         case_sense.transform(HeadSr(self.unsup_docs, 10**6)),
+            #         tokenize_sense.transform(HeadSr(self.unsup_docs, 10**6)),
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
             # ]), self.memory)),
             # ('w2v_word_inv', CachedFitTransform(Pipeline([
-            #     ('tokenizer', case_sense),
+            #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecInverse(
-            #         list(case_sense.transform(docs) for docs in (
+            #         list(tokenize_sense.transform(docs) for docs in (
             #             HeadSr(self.unsup_docs, 10**5), self.dev_docs, self.test_docs
             #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
@@ -141,7 +141,7 @@ class AllPipelines:
         use_w2v = True
         name = 'cnn(use_w2v={})'.format(use_w2v)
         input_pipeline = Pipeline([
-            ('case_sense', Map([tokenize, normalize])),
+            ('tokenize', Map([tokenize, normalize])),
             ('index', WordIndex(
                 # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
                 lambda: get_rng().uniform(-0.25, 0.25, 300),
