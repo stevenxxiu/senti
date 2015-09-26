@@ -6,7 +6,9 @@ import sys
 import numpy as np
 from scipy import sparse
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'sparse_sum', 'vstack']
+from wrapt import ObjectProxy
+
+__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'PicklableProxy', 'sparse_sum', 'vstack']
 
 
 class Tee:
@@ -60,6 +62,31 @@ class HeadSr(PicklableSr):
         self.sr.seek(0)
         for i, line in zip(range(self.n), self.sr):
             yield line
+
+
+class PicklableProxy(ObjectProxy):
+    def __init__(self, wrapped, *args):
+        super().__init__(wrapped)
+        self._self_attrs = {'_self_attrs'}
+        self._self_args = args
+
+    def __setattr__(self, name, value):
+        if name.startswith('_self_') and name != '_self_attrs':
+            self._self_attrs.add(name)
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        if name.startswith('_self_') and name != '_self_attrs':
+            self._self_attrs.remove(name)
+        super().__delattr__(name)
+
+    def __reduce__(self):
+        return type(self), (self.__wrapped__,) + self._self_args, \
+            tuple((attr, getattr(self, attr)) for attr in self._self_attrs if attr != '_self_attrs')
+
+    def __setstate__(self, state):
+        for attr, value in state:
+            setattr(self, attr, value)
 
 
 def sparse_sum(X, axis):

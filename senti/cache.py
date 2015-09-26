@@ -1,25 +1,12 @@
 
 from contextlib import suppress
 
-from wrapt import ObjectProxy
+from senti.utils import PicklableProxy
 
 __all__ = ['CachedFitTransform']
 
 
-class PicklableProxy(ObjectProxy):
-    def __init__(self, wrapped, attrs):
-        super().__init__(wrapped)
-        self._self_attrs = attrs
-
-    def __reduce__(self):
-        return type(self), (self.__wrapped__, self._self_attrs), tuple(getattr(self, attr) for attr in self._self_attrs)
-
-    def __setstate__(self, state):
-        for attr, value in zip(self._self_attrs, state):
-            setattr(self, attr, value)
-
-
-class CachedFitTransform(ObjectProxy):
+class CachedFitTransform(PicklableProxy):
     '''
     Optional hashing of the data is used for fit & transform for speed. This means that the same data may be cached
     multiple times on disk, given different hashes. But since the process of generating the data would likely be the
@@ -29,7 +16,7 @@ class CachedFitTransform(ObjectProxy):
     '''
 
     def __init__(self, estimator, memory, ignored_params=()):
-        super().__init__(estimator)
+        super().__init__(estimator, memory, ignored_params)
         self._self_fit_hash = None
         self._self_transform_hash = None
         self._self_cached_fit = memory.cache(self._cached_fit, ignore=['self', 'X_hash'])
@@ -62,14 +49,16 @@ class CachedFitTransform(ObjectProxy):
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):
-        return self.__wrapped__.transform(X)
+        # workaround since joblib doesn't support caching of iterators
+        res = self.__wrapped__.transform(X)
+        return list(res) if hasattr(res, '__iter__') and not hasattr(res, '__len__') else res
 
     def transform(self, X):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
         transform_func = self._self_cached_transform_hash if X_hash else self._self_cached_transform
         res, res_hash, _ = self._cached_call(transform_func, type(self.__wrapped__), self._self_fit_hash, X_hash, X)
         if not isinstance(res, PicklableProxy):
-            res = PicklableProxy(res, ['_self_joblib_hash'])
+            res = PicklableProxy(res)
         res._self_joblib_hash = res_hash
         return res
 
