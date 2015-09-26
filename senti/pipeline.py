@@ -26,31 +26,6 @@ class AllPipelines:
         self.dev_labels = dev_labels
         self.memory = Memory(cachedir='cache', verbose=0)
 
-    def get_logreg_pipeline(self):
-        tokenize_sense = Map([tokenize, normalize, unescape])
-        features = [
-            # ('w2v_doc', CachedFitTransform(Pipeline([
-            #     ('tokenize', tokenize_sense),
-            #     ('feature', Doc2VecTransform(
-            #         list(tokenize_sense.transform(docs) for docs in (
-            #             HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
-            #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     )),
-            # ]), self.memory)),
-            ('w2v_word_avg_google', CachedFitTransform(Pipeline([
-                ('tokenize', tokenize_sense),
-                ('feature', (Word2VecAverage(
-                    word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
-                )))
-            ]), self.memory)),
-        ]
-        name = 'logreg({})'.format(','.join(name for name, estimator in features))
-        pipeline = Pipeline([
-            ('features', FeatureUnion(features)),
-            ('logreg', LogisticRegression()),
-        ])
-        return name, pipeline
-
     def get_svm_pipeline(self):
         tokenize_sense = Map([tokenize, normalize, unescape])
         tokenize_insense = Map([tokenize, str.lower, normalize, unescape])
@@ -93,13 +68,30 @@ class AllPipelines:
                 ('feature', Emoticons()),
                 ('last', Index(-1)),
             ])),
-            ('w2v_doc', CachedFitTransform(Pipeline([
+        ]
+        name = 'svm({})'.format(','.join(name for name, estimator in features))
+        pipeline = Pipeline([
+            ('features', FeatureUnion(features)),
+            ('svm', SVC(kernel='linear', C=0.005)),
+        ])
+        return name, pipeline
+
+    def get_logreg_pipeline(self):
+        tokenize_sense = Map([tokenize, normalize, unescape])
+        features = [
+            # ('w2v_doc', CachedFitTransform(Pipeline([
+            #     ('tokenize', tokenize_sense),
+            #     ('feature', Doc2VecTransform(
+            #         list(tokenize_sense.transform(docs) for docs in (
+            #             HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
+            #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+            #     )),
+            # ]), self.memory)),
+            ('w2v_word_avg_google', CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_sense),
-                ('feature', Doc2VecTransform(
-                    list(tokenize_sense.transform(docs) for docs in (
-                        HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
-                    )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-                )),
+                ('feature', (Word2VecAverage(
+                    word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+                )))
             ]), self.memory)),
             # ('w2v_word_avg', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
@@ -130,10 +122,10 @@ class AllPipelines:
             #     ))
             # ]), self.memory)),
         ]
-        name = 'svm({})'.format(','.join(name for name, estimator in features))
+        name = 'logreg({})'.format(','.join(name for name, estimator in features))
         pipeline = Pipeline([
             ('features', FeatureUnion(features)),
-            ('svm', SVC(kernel='linear', C=0.005)),
+            ('logreg', LogisticRegression()),
         ])
         return name, pipeline
 
