@@ -79,20 +79,20 @@ class AllPipelines:
     def get_logreg_pipeline(self):
         tokenize_sense = Map([tokenize, normalize, unescape])
         features = [
-            # ('w2v_doc', CachedFitTransform(Pipeline([
-            #     ('tokenize', tokenize_sense),
-            #     ('feature', Doc2VecTransform(
-            #         list(tokenize_sense.transform(docs) for docs in (
-            #             HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
-            #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     )),
-            # ]), self.memory)),
-            ('w2v_word_avg_google', CachedFitTransform(Pipeline([
+            ('w2v_doc', CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_sense),
-                ('feature', (Word2VecAverage(
-                    word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
-                )))
+                ('feature', Doc2VecTransform(
+                    list(tokenize_sense.transform(docs) for docs in (
+                        HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
+                    )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+                )),
             ]), self.memory)),
+            # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
+            #     ('tokenize', tokenize_sense),
+            #     ('feature', (Word2VecAverage(
+            #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+            #     )))
+            # ]), self.memory)),
             # ('w2v_word_avg', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(

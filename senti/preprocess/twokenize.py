@@ -29,7 +29,7 @@ whitespace = re.compile("[\s\u0020\u00a0\u1680\u180e\u202f\u205f\u3000\u2000-\u2
 punct_chars = r"['\"“”‘’.?!…,:;]"
 # punct_seq = punct_chars + "+"    # 'anthem'. => ' anthem '.
 punct_seq = r"['\"“”‘’]+|[.?!,…]+|[:;]+"   # 'anthem'. => ' anthem ' .
-entity = r"&(?:amp|lt|gt|quot);"
+entity = r"[&<>\"]"
 # URLs
 
 # BTO 2012-06: everyone thinks the daringfireball regex should be better, but they're wrong.
