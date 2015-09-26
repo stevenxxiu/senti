@@ -5,7 +5,6 @@ __all__ = ['unescape', 'normalize']
 
 
 def unescape(text):
-    text = text.replace('&amp;', '&')
     text = text.replace('\u2019', '\'')
     return text
 
