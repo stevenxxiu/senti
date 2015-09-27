@@ -1,6 +1,5 @@
 
 import numpy as np
-from scipy import sparse
 from sklearn.base import BaseEstimator
 
 from senti.base import ReiterableMixin
@@ -40,7 +39,7 @@ class Count(BaseEstimator):
 
     @staticmethod
     def transform(docs):
-        return vstack(sparse.coo_matrix(sparse_sum(doc, axis=0)) for doc in docs)
+        return vstack(sparse_sum(doc, axis=0) for doc in docs)
 
 
 class Proportion(BaseEstimator):
@@ -49,7 +48,7 @@ class Proportion(BaseEstimator):
 
     @staticmethod
     def transform(docs):
-        return vstack(sparse.coo_matrix(sparse_sum(doc, axis=0))/doc.shape[0] for doc in docs)
+        return vstack(sparse_sum(doc, axis=0)/doc.shape[0] for doc in docs)
 
 
 class Clip(BaseEstimator):

@@ -24,15 +24,15 @@ class NGramsBase(BaseEstimator, ReiterableMixin):
 
     def _transform(self, docs):
         for doc in docs:
-            row, col = [], []
             # include 0 rows so the shape is right
+            indices, indptr = [], [0]
             i = -1
             for i, ngram in enumerate(self._iter_ngrams(doc)):
                 if ngram in self.ngram_to_index:
-                    row.append(i)
-                    col.append(self.ngram_to_index[ngram])
-            yield sparse.coo_matrix(
-                (np.ones(len(row)), (row, col)), shape=(i + 1, len(self.ngram_to_index)), dtype='float32'
+                    indices.append(self.ngram_to_index[ngram])
+                indptr.append(len(indices))
+            yield sparse.csr_matrix(
+                (np.ones(len(indices)), indices, indptr), shape=(i + 1, len(self.ngram_to_index)), dtype='float32'
             )
 
 

@@ -92,10 +92,10 @@ class PicklableProxy(ObjectProxy):
 def sparse_sum(X, axis):
     if axis == 0:
         n = X.shape[0]
-        return sparse.csc_matrix((np.ones(n), (np.zeros(n), np.arange(n))))*X
+        return sparse.csr_matrix((np.ones(n), np.arange(n), (0, n)))*X
     elif axis == 1:
         n = X.shape[1]
-        return X*sparse.csc_matrix((np.ones(n), (np.zeros(n), np.arange(n))))
+        return X*sparse.csr_matrix((np.ones(n), np.arange(n), (0, n)))
 
 
 def vstack(Xs):
