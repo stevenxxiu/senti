@@ -20,6 +20,19 @@ class Map(BaseEstimator):
             yield self.func(doc)
 
 
+class MapTokens(BaseEstimator):
+    def __init__(self, func):
+        self.func = func
+
+    def fit(self, docs, y=None):
+        return self
+
+    @reiterable
+    def transform(self, docs):
+        for doc in docs:
+            yield list(map(self.func, doc))
+
+
 class Index(BaseEstimator):
     def __init__(self, i):
         self.i = i
