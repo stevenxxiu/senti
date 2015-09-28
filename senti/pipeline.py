@@ -13,7 +13,7 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
-from senti.utils import HeadSr
+from senti.utils import HeadSr, compose
 
 __all__ = ['AllPipelines']
 
@@ -27,9 +27,9 @@ class AllPipelines:
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def get_svm_pipeline(self):
-        tokenize_sense = CachedFitTransform(Map([tokenize, normalize, unescape]), self.memory)
-        tokenize_insense = CachedFitTransform(Map([tokenize, str.lower, normalize, unescape]), self.memory)
-        tokenize_insense_raw = CachedFitTransform(Map([tokenize, str.lower, unescape]), self.memory)
+        tokenize_sense = CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)
+        tokenize_insense = CachedFitTransform(Map(compose([tokenize, str.lower, normalize, unescape])), self.memory)
+        tokenize_insense_raw = CachedFitTransform(Map(compose([tokenize, str.lower, unescape])), self.memory)
         features = [
             ('word_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_insense),
@@ -77,7 +77,7 @@ class AllPipelines:
         return name, pipeline
 
     def get_logreg_pipeline(self):
-        tokenize_sense = CachedFitTransform(Map([tokenize, normalize, unescape]), self.memory)
+        tokenize_sense = CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)
         features = [
             ('w2v_doc', CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_sense),
@@ -133,7 +133,7 @@ class AllPipelines:
         use_w2v = True
         name = 'cnn(use_w2v={})'.format(use_w2v)
         input_pipeline = Pipeline([
-            ('tokenize', CachedFitTransform(Map([tokenize, normalize, unescape]), self.memory)),
+            ('tokenize', CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)),
             ('index', WordIndex(
                 # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
                 lambda: get_rng().uniform(-0.25, 0.25, 300),

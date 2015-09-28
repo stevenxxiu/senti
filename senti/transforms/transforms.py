@@ -8,8 +8,8 @@ __all__ = ['Map', 'Index', 'Count', 'Proportion', 'Clip']
 
 
 class Map(BaseEstimator):
-    def __init__(self, funcs):
-        self.funcs = funcs
+    def __init__(self, func):
+        self.func = func
 
     def fit(self, X, y=None):
         return self
@@ -17,9 +17,7 @@ class Map(BaseEstimator):
     @reiterable
     def transform(self, docs):
         for doc in docs:
-            for func in self.funcs[::-1]:
-                doc = func(doc)
-            yield doc
+            yield self.func(doc)
 
 
 class Index(BaseEstimator):

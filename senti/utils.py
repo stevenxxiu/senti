@@ -7,7 +7,9 @@ import numpy as np
 from scipy import sparse
 from wrapt import ObjectProxy
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'PicklableProxy', 'sparse_sum', 'vstack', 'reiterable']
+__all__ = [
+    'Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'PicklableProxy', 'reiterable', 'compose', 'sparse_sum', 'vstack'
+]
 
 
 class Tee:
@@ -108,6 +110,22 @@ def reiterable(method):
         return Reiterable(method, *args)
 
     return decorated
+
+
+class Compose:
+    def __init__(self, funcs):
+        self.funcs = funcs
+
+    def __eq__(self, other):
+        return self.funcs == other.funcs
+
+    def __call__(self, *args, **kwargs):
+        res = self.funcs[-1](*args, **kwargs)
+        for func in self.funcs[-2::-1]:
+            res = func(res)
+        return res
+
+compose = Compose
 
 
 def sparse_sum(X, axis):
