@@ -4,12 +4,12 @@ import unicodedata
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
+from senti.utils import reiterable
 
 __all__ = ['Elongations']
 
 
-class Elongations(BaseEstimator, ReiterableMixin):
+class Elongations(BaseEstimator):
     '''
     Elongated vowels. Other possible constraints: letters, none.
     '''
@@ -37,6 +37,7 @@ class Elongations(BaseEstimator, ReiterableMixin):
     def fit(self, docs, y=None):
         return self
 
-    def _transform(self, docs):
+    @reiterable
+    def transform(self, docs):
         for doc in docs:
             yield np.fromiter((self.is_elongated(word, self.is_vowel) for word in doc), dtype='int32')

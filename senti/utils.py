@@ -5,10 +5,9 @@ import sys
 
 import numpy as np
 from scipy import sparse
-
 from wrapt import ObjectProxy
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'PicklableProxy', 'sparse_sum', 'vstack']
+__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'HeadSr', 'PicklableProxy', 'sparse_sum', 'vstack', 'reiterable']
 
 
 class Tee:
@@ -87,6 +86,28 @@ class PicklableProxy(ObjectProxy):
     def __setstate__(self, state):
         for attr, value in state:
             setattr(self, attr, value)
+
+
+class Reiterable:
+    def __init__(self, func, *args):
+        self.func = func
+        self.args = args
+
+    def __hash__(self):
+        return hash((self.func, self.args))
+
+    def __eq__(self, other):
+        return self.func == other.func and self.args == other.args
+
+    def __iter__(self):
+        yield from self.func(*self.args)
+
+
+def reiterable(method):
+    def decorated(*args):
+        return Reiterable(method, *args)
+
+    return decorated
 
 
 def sparse_sum(X, axis):

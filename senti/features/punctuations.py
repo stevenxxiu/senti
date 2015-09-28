@@ -2,12 +2,12 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
+from senti.utils import reiterable
 
 __all__ = ['Punctuations']
 
 
-class Punctuations(BaseEstimator, ReiterableMixin):
+class Punctuations(BaseEstimator):
     '''
     Proportion of words with punctuation marks.
     '''
@@ -16,7 +16,8 @@ class Punctuations(BaseEstimator, ReiterableMixin):
         return self
 
     @staticmethod
-    def _transform(docs):
+    @reiterable
+    def transform(docs):
         for doc in docs:
             charsets = tuple(frozenset(word) for word in doc if word)
             yield np.hstack([

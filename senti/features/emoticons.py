@@ -4,7 +4,7 @@ import re
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
+from senti.utils import reiterable
 
 __all__ = ['Emoticons', 'EmoticonType', 'emoticon_re']
 
@@ -40,7 +40,7 @@ class EmoticonType:
     HAPPY = 2
 
 
-class Emoticons(BaseEstimator, ReiterableMixin):
+class Emoticons(BaseEstimator):
     '''
     Positive and negative emoticons.
     '''
@@ -62,7 +62,8 @@ class Emoticons(BaseEstimator, ReiterableMixin):
     def fit(self, docs, y=None):
         return self
 
-    def _transform(self, docs):
+    @reiterable
+    def transform(self, docs):
         for doc in docs:
             matches = np.fromiter((self.assess_match(emoticon_re.match(word)) for word in doc), dtype='int32')
             yield np.hstack([matches == EmoticonType.UNHAPPY, matches == EmoticonType.NEUTRAL, matches == EmoticonType.HAPPY])

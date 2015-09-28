@@ -28,8 +28,8 @@ def main():
 
         # train
         all_pipelines = AllPipelines(unsup_sr, dev_docs, dev_labels, test_docs)
-        pipeline_name, pipeline = all_pipelines.get_logreg_pipeline()
-        # pipeline_name, pipeline = all_pipelines.get_svm_pipeline()
+        # pipeline_name, pipeline = all_pipelines.get_logreg_pipeline()
+        pipeline_name, pipeline = all_pipelines.get_svm_pipeline()
         # pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
         pipeline.fit(train_docs, train_labels)
         classes = pipeline.classes_

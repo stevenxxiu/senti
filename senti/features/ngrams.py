@@ -3,12 +3,12 @@ import numpy as np
 from scipy import sparse
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
+from senti.utils import reiterable
 
 __all__ = ['CharNGrams', 'WordNGrams']
 
 
-class NGramsBase(BaseEstimator, ReiterableMixin):
+class NGramsBase(BaseEstimator):
     def __init__(self):
         self.ngram_to_index = {}
 
@@ -22,7 +22,8 @@ class NGramsBase(BaseEstimator, ReiterableMixin):
                     self.ngram_to_index[ngram] = len(self.ngram_to_index)
         return self
 
-    def _transform(self, docs):
+    @reiterable
+    def transform(self, docs):
         for doc in docs:
             # include 0 rows so the shape is right
             indices, indptr = [], [0]

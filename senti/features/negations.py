@@ -1,8 +1,9 @@
+
 import re
 
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
+from senti.utils import reiterable
 
 __all__ = ['Negations']
 
@@ -14,7 +15,7 @@ NEGATION_RE = re.compile(r'''(?:^(?:
 )$)|n't''', re.X | re.I | re.U)
 
 
-class Negations(BaseEstimator, ReiterableMixin):
+class Negations(BaseEstimator):
     '''
     Prepends 'neg_' to words in negated contexts.
     '''
@@ -30,7 +31,8 @@ class Negations(BaseEstimator, ReiterableMixin):
     def fit(self, docs, y=None):
         return self
 
-    def _transform(self, docs):
+    @reiterable
+    def transform(self, docs):
         for doc in docs:
             negated = False
             for i, word in enumerate(doc):

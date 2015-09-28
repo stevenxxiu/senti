@@ -2,20 +2,20 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.base import ReiterableMixin
-from senti.utils import sparse_sum, vstack
+from senti.utils import reiterable, sparse_sum, vstack
 
 __all__ = ['Map', 'Index', 'Count', 'Proportion', 'Clip']
 
 
-class Map(BaseEstimator, ReiterableMixin):
+class Map(BaseEstimator):
     def __init__(self, funcs):
         self.funcs = funcs
 
     def fit(self, X, y=None):
         return self
 
-    def _transform(self, docs):
+    @reiterable
+    def transform(self, docs):
         for doc in docs:
             for func in self.funcs[::-1]:
                 doc = func(doc)
