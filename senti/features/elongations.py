@@ -40,4 +40,4 @@ class Elongations(BaseEstimator):
     @reiterable
     def transform(self, docs):
         for doc in docs:
-            yield np.fromiter((self.is_elongated(word, self.is_vowel) for word in doc), dtype='int32')
+            yield np.fromiter((self.is_elongated(word) for word in doc), dtype='int32')

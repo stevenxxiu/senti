@@ -5,7 +5,7 @@ from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import Binarizer
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 from senti.cache import CachedFitTransform
 from senti.features import *
@@ -27,13 +27,17 @@ class AllPipelines:
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def get_svm_pipeline(self):
-        tokenize_sense = CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)
-        tokenize_insense = CachedFitTransform(Map(compose([tokenize, str.lower, normalize, unescape])), self.memory)
-        tokenize_insense_raw = CachedFitTransform(Map(compose([tokenize, str.lower, unescape])), self.memory)
+        tokenize_raw = CachedFitTransform(Map(compose([tokenize, normalize_special, unescape])), self.memory)
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', tokenize_raw), ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        tokenize_insense = CachedFitTransform(Pipeline([
+            ('tokenize', tokenize_sense), ('normalize', MapTokens(str.lower)),
+        ]), self.memory)
         features = [
             ('word_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_insense),
-                ('negations', Negations()),
+                ('negation_append', NegationAppend()),
                 ('ngrams', WordNGrams(n)),
                 ('count', Count()),
                 ('binarize', Binarizer(copy=False)),
@@ -41,43 +45,64 @@ class AllPipelines:
             ('char_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_insense),
                 ('ngrams', CharNGrams(n)),
-                ('proportion', Proportion()),
+                ('count', Count()),
+                ('binarize', Binarizer(copy=False)),
             ]), self.memory)) for n in range(3, 5 + 1)])),
             ('all_caps', Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', AllCaps()),
-                ('proportion', Proportion()),
+                ('count', Count()),
             ])),
+            # XXX pos
+            ('hashtags', Pipeline([
+                ('tokenize', tokenize_sense),
+                ('feature', HashTags()),
+                ('count', Count()),
+            ])),
+            # XXX lexicons
             ('punctuations', Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', Punctuations()),
-                ('proportion', Proportion()),
+                ('count', Count()),
             ])),
-            ('elongated', Pipeline([
-                ('tokenize', tokenize_insense_raw),
-                ('feature', Elongations()),
-                ('proportion', Proportion()),
+            ('punctuation_last', Pipeline([
+                ('tokenize', tokenize_sense),
+                ('feature', Punctuations()),
+                ('last', Index(-1)),
             ])),
             ('emoticons', Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', Emoticons()),
-                ('proportion', Proportion()),
+                ('count', Count()),
+                ('binarize', Binarizer(copy=False)),
             ])),
             ('emoticon_last', Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', Emoticons()),
                 ('last', Index(-1)),
             ])),
+            ('elongated', Pipeline([
+                ('tokenize', tokenize_raw),
+                ('feature', Elongations()),
+                ('count', Count()),
+            ])),
+            ('negation_count', Pipeline([
+                ('tokenize', tokenize_insense),
+                ('feature', NegationCount()),
+            ])),
         ]
         name = 'svm({})'.format(','.join(name for name, estimator in features))
         pipeline = Pipeline([
             ('features', FeatureUnion(features)),
-            ('svm', SVC(kernel='linear', C=0.005)),
+            ('svm', LinearSVC(C=0.005)),
         ])
         return name, pipeline
 
     def get_logreg_pipeline(self):
-        tokenize_sense = CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
         features = [
             ('w2v_doc', CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_sense),
@@ -133,7 +158,10 @@ class AllPipelines:
         use_w2v = True
         name = 'cnn(use_w2v={})'.format(use_w2v)
         input_pipeline = Pipeline([
-            ('tokenize', CachedFitTransform(Map(compose([tokenize, normalize, unescape])), self.memory)),
+            ('tokenize', CachedFitTransform(Pipeline([
+                ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+                ('normalize', MapTokens(normalize_elongations)),
+            ]), self.memory)),
             ('index', WordIndex(
                 # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
                 lambda: get_rng().uniform(-0.25, 0.25, 300),

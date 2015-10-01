@@ -66,4 +66,4 @@ class Emoticons(BaseEstimator):
     def transform(self, docs):
         for doc in docs:
             matches = np.fromiter((self.assess_match(emoticon_re.match(word)) for word in doc), dtype='int32')
-            yield np.hstack([matches == EmoticonType.UNHAPPY, matches == EmoticonType.NEUTRAL, matches == EmoticonType.HAPPY])
+            yield np.hstack([matches == EmoticonType.UNHAPPY, matches == EmoticonType.HAPPY])

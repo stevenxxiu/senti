@@ -22,6 +22,6 @@ class Punctuations(BaseEstimator):
             charsets = tuple(frozenset(word) for word in doc if word)
             yield np.hstack([
                 np.fromiter((chars == {'!'} for chars in charsets), dtype='bool'),
-                np.fromiter((chars == {'!'} for chars in charsets), dtype='bool'),
+                np.fromiter((chars == {'?'} for chars in charsets), dtype='bool'),
                 np.fromiter((chars == {'!', '?'} for chars in charsets), dtype='bool'),
             ])

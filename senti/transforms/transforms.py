@@ -4,7 +4,7 @@ from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable, sparse_sum, vstack
 
-__all__ = ['Map', 'Index', 'Count', 'Proportion', 'Clip']
+__all__ = ['Map', 'MapTokens', 'Index', 'Count', 'Proportion', 'Clip']
 
 
 class Map(BaseEstimator):
