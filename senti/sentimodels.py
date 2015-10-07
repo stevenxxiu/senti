@@ -1,7 +1,8 @@
 
+import joblib
+import numpy as np
+from joblib import Memory
 from lasagne.nonlinearities import identity, rectify
-from sklearn.externals import joblib
-from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import Binarizer
@@ -15,18 +16,24 @@ from senti.rand import get_rng
 from senti.transforms import *
 from senti.utils import HeadSr, compose
 
-__all__ = ['AllPipelines']
+__all__ = ['SentiModels']
 
 
-class AllPipelines:
-    def __init__(self, unsup_docs, dev_docs, dev_labels, test_docs):
+class SentiModels:
+    def __init__(
+        self, train_docs, train_labels, distant_docs, distant_labels, unsup_docs, dev_docs, dev_labels, test_docs
+    ):
+        self.train_docs = train_docs
+        self.train_labels = train_labels
+        self.distant_docs = distant_docs
+        self.distant_labels = distant_labels
         self.unsup_docs = unsup_docs
         self.dev_docs = dev_docs
         self.test_docs = test_docs
         self.dev_labels = dev_labels
         self.memory = Memory(cachedir='cache', verbose=0)
 
-    def get_svm_pipeline(self):
+    def fit_svm(self):
         tokenize_raw = CachedFitTransform(Map(compose([tokenize, normalize_special, unescape])), self.memory)
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', tokenize_raw), ('normalize', MapTokens(normalize_elongations)),
@@ -91,40 +98,32 @@ class AllPipelines:
                 ('feature', NegationCount()),
             ])),
         ]
-        name = 'svm({})'.format(','.join(name for name, estimator in features))
-        pipeline = Pipeline([
+        name = 'svm({})'.format(','.join(name for name, _ in features))
+        estimator = Pipeline([
             ('features', FeatureUnion(features)),
             ('svm', LinearSVC(C=0.005)),
         ])
-        return name, pipeline
+        estimator.fit(self.train_docs, self.train_labels)
+        return name, estimator
 
-    def get_logreg_pipeline(self):
+    def fit_logreg(self):
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = [
-            ('w2v_doc', CachedFitTransform(Pipeline([
+            ('w2v_doc', CachedFitTransform(FixedTransformWrapper(Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', Doc2VecTransform(
-                    list(tokenize_sense.transform(docs) for docs in (
-                        HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs
-                    )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 )),
-            ]), self.memory)),
-            # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
-            #     ('tokenize', tokenize_sense),
-            #     ('feature', (Word2VecAverage(
-            #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
-            #     )))
-            # ]), self.memory)),
+            ])), self.memory).fit([self.train_docs, HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs])),
             # ('w2v_word_avg', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(
-            #         tokenize_sense.transform(HeadSr(self.unsup_docs, 10**6)),
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     )),
-            # ]), self.memory)),
+            # ]), self.memory).fit(HeadSr(self.unsup_docs, 10**6))),
             # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', (Word2VecAverage(
@@ -134,30 +133,30 @@ class AllPipelines:
             # ('w2v_word_max', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(
-            #         tokenize_sense.transform(HeadSr(self.unsup_docs, 10**6)),
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
-            # ]), self.memory)),
-            # ('w2v_word_inv', CachedFitTransform(Pipeline([
+            # ]), self.memory).fit(HeadSr(self.unsup_docs, 10**6))),
+            # ('w2v_word_inv', CachedFitTransform(FixedTransformWrapper(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecInverse(
-            #         list(tokenize_sense.transform(docs) for docs in (
-            #             HeadSr(self.unsup_docs, 10**5), self.dev_docs, self.test_docs
-            #         )), cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
-            # ]), self.memory)),
+            # ])), self.memory).fit([HeadSr(self.unsup_docs, 10**5), self.dev_docs, self.test_docs])),
         ]
         name = 'logreg({})'.format(','.join(name for name, estimator in features))
-        pipeline = Pipeline([
-            ('features', FeatureUnion(features)),
-            ('logreg', LogisticRegression()),
+        feature_union = FeatureUnion(features)
+        classifier = LogisticRegression()
+        classifier.fit(feature_union.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
+        estimator = Pipeline([
+            ('features', feature_union),
+            ('logreg', classifier),
         ])
-        return name, pipeline
+        return name, estimator
 
-    def get_cnn_pipeline(self):
+    def fit_cnn(self):
         use_w2v = True
         name = 'cnn(use_w2v={})'.format(use_w2v)
-        input_pipeline = Pipeline([
+        feature = Pipeline([
             ('tokenize', CachedFitTransform(Pipeline([
                 ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
                 ('normalize', MapTokens(normalize_elongations)),
@@ -170,13 +169,15 @@ class AllPipelines:
             )),
             ('clip', Clip(56))
         ])
-        input_pipeline.fit(self.dev_docs)
-        pipeline = Pipeline(input_pipeline.steps + [
+        feature.fit(self.dev_docs)
+        estimator = Pipeline(feature.steps + [
             ('cnn', ConvNet(
-                batch_size=50, shuffle_batch=True, n_epochs=6, dev_X=input_pipeline.transform(self.dev_docs),
-                dev_y=self.dev_labels, average_classes=[0, 2], embeddings=input_pipeline.named_steps['index'], img_h=56,
-                filter_hs=[3, 4, 5], hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify,
-                activations=(identity,), non_static=True, lr_decay=0.95, norm_lim=3
+                batch_size=50, shuffle_batch=True, n_epochs=6, dev_X=feature.transform(self.dev_docs),
+                dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2],
+                embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
+                dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), non_static=True,
+                lr_decay=0.95, norm_lim=3
             )),
         ])
-        return name, pipeline
+        estimator.fit(self.train_docs, self.train_labels)
+        return name, estimator

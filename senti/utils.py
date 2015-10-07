@@ -83,7 +83,7 @@ class PicklableProxy(ObjectProxy):
 
     def __reduce__(self):
         return type(self), (self.__wrapped__,) + self._self_args, \
-            tuple((attr, getattr(self, attr)) for attr in self._self_attrs if attr != '_self_attrs')
+            tuple((attr, getattr(self, attr)) for attr in sorted(self._self_attrs) if attr != '_self_attrs')
 
     def __setstate__(self, state):
         for attr, value in state:
@@ -141,4 +141,4 @@ def vstack(Xs):
     Xs = iter(Xs)
     X = next(Xs)
     Xs = itertools.chain([X], Xs)
-    return sparse.vstack(Xs) if X.ndim == 2 else np.vstack(Xs)
+    return sparse.vstack(Xs) if sparse.issparse(X) else np.vstack(Xs)

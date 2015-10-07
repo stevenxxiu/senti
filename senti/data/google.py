@@ -2,8 +2,8 @@
 
 import os
 
+import joblib
 import numpy as np
-from sklearn.externals import joblib
 
 from senti.features.word2vec import Word2Vec
 
@@ -26,7 +26,7 @@ def main():
                     # ignore newlines in front of words (some binary files have them)
                     word.append(ch[0])
             word2vec.word_to_index[word.decode('utf-8')] = i
-            vecs.append(np.frombuffer(sr.read(binary_len), dtype=np.float32))
+            vecs.append(np.frombuffer(sr.read(binary_len), dtype='float32'))
         word2vec.X = np.vstack(vecs)
     joblib.dump(word2vec, 'GoogleNews-vectors-negative300.pickle')
 

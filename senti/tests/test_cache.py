@@ -4,8 +4,8 @@ import unittest
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 
+from joblib import Memory
 from sklearn.base import BaseEstimator
-from sklearn.externals.joblib import Memory
 
 from senti.cache import *
 

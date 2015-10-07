@@ -26,7 +26,10 @@ def pad_docs(X, y, batch_size, rand=False):
 
 
 class ConvNet(BaseEstimator):
-    def __init__(self, batch_size, shuffle_batch, n_epochs, dev_X, dev_y, average_classes, *args, **kwargs):
+    def __init__(
+        self, batch_size, shuffle_batch, n_epochs, dev_X, dev_y, average_classes, *args,
+        **kwargs
+    ):
         self.batch_size = batch_size
         self.shuffle_batch = shuffle_batch
         self.n_epochs = n_epochs

@@ -61,17 +61,24 @@ class Doc2Vec(Word2VecBase):
         return self
 
 
-class Word2VecFeatureBase(BaseEstimator):
-    def __init__(self, unsup_docs=(), word2vec=None, **kwargs):
-        self.unsup_docs = unsup_docs
-        self.word2vec = word2vec or Word2Vec(**kwargs)
+class FeatureBase(BaseEstimator):
+    def __init__(self, word2vec):
+        self.word2vec = word2vec
+
+    def get_params(self, deep=True):
+        res = super().get_params(deep)
+        res['word2vec'] = self.word2vec.kwargs
+        return res
 
     def fit(self, docs, y=None):
-        if not self.word2vec.word_to_index:
-            self.word2vec.fit(itertools.chain(docs, self.unsup_docs))
+        if not getattr(self.word2vec, 'word_to_index', None):
+            self.word2vec.fit(docs)
 
 
-class Word2VecAverage(Word2VecFeatureBase):
+class Word2VecAverage(FeatureBase):
+    def __init__(self, word2vec=None, **kwargs):
+        super().__init__(word2vec or Word2Vec(**kwargs))
+
     def transform(self, docs):
         vecs = []
         words, X = self.word2vec.word_to_index, self.word2vec.X
@@ -80,10 +87,13 @@ class Word2VecAverage(Word2VecFeatureBase):
         return np.vstack(vecs)
 
 
-class Word2VecMax(Word2VecFeatureBase):
+class Word2VecMax(FeatureBase):
     '''
     Component-wise abs max. Doesn't make much sense because the components aren't importance, but worth a try.
     '''
+
+    def __init__(self, word2vec=None, **kwargs):
+        super().__init__(word2vec or Word2Vec(**kwargs))
 
     def transform(self, docs):
         vecs = []
@@ -95,57 +105,28 @@ class Word2VecMax(Word2VecFeatureBase):
         return np.vstack(vecs)
 
 
-class Doc2VecFeatureBase(BaseEstimator):
-    def __init__(self, corporas=()):
-        self.corporas = corporas
-        self._corporas_start = []
-        self._corporas_end = []
-
-    def _all_docs(self):
-        pos = 0
-        for corpora in self.corporas:
-            self._corporas_start.append(pos)
-            i = -1
-            for i, doc in enumerate(corpora):
-                yield doc
-            pos += i + 1
-            self._corporas_end.append(pos)
-
-
-class Doc2VecTransform(Doc2VecFeatureBase):
-    def __init__(self, corporas=(), **kwargs):
-        super().__init__(corporas)
-        self.word2vec = Doc2Vec(**kwargs)
-
-    def fit(self, docs, y=None):
-        self.corporas.append(docs)
-        self.word2vec.fit(self._all_docs())
-        return self
+class Doc2VecTransform(FeatureBase):
+    def __init__(self, **kwargs):
+        super().__init__(Doc2Vec(**kwargs))
 
     def transform(self, docs):
-        try:
-            i = self.corporas.index(docs)
-        except IndexError:
-            raise ValueError('docs were not fitted')
-        return self.word2vec.X[self._corporas_start[i]:self._corporas_end[i]]
+        return self.word2vec.X
 
 
-class Word2VecInverse(Doc2VecFeatureBase):
+class Word2VecInverse(FeatureBase):
     '''
     Performs a document embedding.
     '''
 
-    def __init__(self, corporas=(), docs_min=10, docs_max=2000, **kwargs):
-        super().__init__(corporas)
+    def __init__(self, docs_min=10, docs_max=2000, **kwargs):
+        super().__init__(Word2Vec(**kwargs))
         self.docs_min = docs_min
         self.docs_max = docs_max
-        self.word2vec = Word2Vec(**kwargs)
 
     def fit(self, docs, y=None):
-        self.corporas.append(docs)
         # number documents using integers for easy sorting later
         word_to_docs = defaultdict(set)
-        for i, words in enumerate(self._all_docs()):
+        for i, words in docs:
             for word in words:
                 word_to_docs[word].add(str(i))
         # remove common & rare words
@@ -153,10 +134,6 @@ class Word2VecInverse(Doc2VecFeatureBase):
         return self
 
     def transform(self, docs):
-        try:
-            i = self.corporas.index(docs)
-        except IndexError:
-            raise ValueError('docs were not fitted')
         return self.word2vec.X[list(
-            self.word2vec.word_to_index[str(j)] for j in range(self._corporas_start[i], self._corporas_end[i])
+            self.word2vec.word_to_index[str(i)] for i in range(len(self.word2vec.word_to_index))
         )]

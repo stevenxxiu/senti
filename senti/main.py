@@ -6,32 +6,35 @@ import os
 import numpy as np
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
-from senti.pipeline import *
 from senti.rand import set_rng
 from senti.score import *
+from senti.sentimodels import *
 from senti.utils import *
 
 
 def main():
     os.chdir('data/twitter')
     with open('train.json') as train_sr, open('unsup.txt', encoding='utf-8') as unsup_sr, \
-            open('dev.json') as dev_sr, open('test.json') as test_sr:
+            open('distant.json') as distant_sr, open('dev.json') as dev_sr, open('test.json') as test_sr:
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
         dev_docs = FieldExtractor(dev_sr, 'text')
-        dev_labels = np.fromiter(FieldExtractor(dev_sr, 'label'), 'int32')
+        dev_labels = FieldExtractor(dev_sr, 'label')
+        distant_docs = FieldExtractor(distant_sr, 'text')
+        distant_labels = FieldExtractor(distant_sr, 'label')
         test_docs = FieldExtractor(test_sr, 'text')
-        test_labels = np.fromiter(FieldExtractor(test_sr, 'label'), 'int32')
+        test_labels = FieldExtractor(test_sr, 'label')
 
         # fix seed for reproducibility
         set_rng(np.random.RandomState(1000))
 
         # train
-        all_pipelines = AllPipelines(unsup_sr, dev_docs, dev_labels, test_docs)
-        # pipeline_name, pipeline = all_pipelines.get_logreg_pipeline()
-        pipeline_name, pipeline = all_pipelines.get_svm_pipeline()
-        # pipeline_name, pipeline = all_pipelines.get_cnn_pipeline()
-        pipeline.fit(train_docs, train_labels)
+        senti_models = SentiModels(
+            train_docs, train_labels, distant_docs, distant_labels, unsup_sr, dev_docs, dev_labels, test_docs
+        )
+        pipeline_name, pipeline = senti_models.fit_logreg()
+        # pipeline_name, pipeline = senti_models.fit_svm()
+        # pipeline_name, pipeline = senti_models.fit_cnn()
         classes = pipeline.classes_
 
         # test_data = [('dev', dev_docs, dev_labels)]
@@ -55,6 +58,7 @@ def main():
                         'prob_pos': float(probs[indexes[2]]),
                     }) + '\n')
             print('{} data: '.format(name))
+            labels = np.fromiter(labels, dtype='int32')
             write_score('results/{}/{}'.format(name, pipeline_name), labels, all_probs, classes, (0, 2))
 
 if __name__ == '__main__':
