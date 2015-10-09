@@ -2,11 +2,13 @@
 
 import json
 import os
+from contextlib import ExitStack
 
 import numpy as np
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
 from senti.rand import set_rng
+import itertools
 from senti.score import *
 from senti.sentimodels import *
 from senti.utils import *
@@ -14,14 +16,20 @@ from senti.utils import *
 
 def main():
     os.chdir('data/twitter')
-    with open('train.json') as train_sr, open('unsup.txt', encoding='utf-8') as unsup_sr, \
-            open('distant.json') as distant_sr, open('dev.json') as dev_sr, open('test.json') as test_sr:
+    with ExitStack() as stack:
+        # load data
+        train_sr = stack.enter_context(open('train.json'))
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
+        distant_srs = list(stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2])
+        distant_docs = BalancedSlice(distant_srs)
+        distant_labels = BalancedSlice((itertools.repeat(0), itertools.repeat(2)))
+        unsup_sr = stack.enter_context(open('unsup.txt', encoding='utf-8'))
+        unsup_docs = BalancedSlice([unsup_sr])
+        dev_sr = stack.enter_context(open('dev.json'))
         dev_docs = FieldExtractor(dev_sr, 'text')
         dev_labels = FieldExtractor(dev_sr, 'label')
-        distant_docs = FieldExtractor(distant_sr, 'text')
-        distant_labels = FieldExtractor(distant_sr, 'label')
+        test_sr = stack.enter_context(open('test.json'))
         test_docs = FieldExtractor(test_sr, 'text')
         test_labels = FieldExtractor(test_sr, 'label')
 
@@ -30,11 +38,11 @@ def main():
 
         # train
         senti_models = SentiModels(
-            train_docs, train_labels, distant_docs, distant_labels, unsup_sr, dev_docs, dev_labels, test_docs
+            train_docs, train_labels, distant_docs, distant_labels, unsup_docs, dev_docs, dev_labels, test_docs
         )
-        pipeline_name, pipeline = senti_models.fit_logreg()
+        # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        # pipeline_name, pipeline = senti_models.fit_cnn()
+        pipeline_name, pipeline = senti_models.fit_cnn()
         classes = pipeline.classes_
 
         # test_data = [('dev', dev_docs, dev_labels)]

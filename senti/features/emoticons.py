@@ -6,7 +6,7 @@ from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
 
-__all__ = ['Emoticons', 'EmoticonType', 'emoticon_re']
+__all__ = ['Emoticons', 'EmoticonType']
 
 # Adapted from Christopher Potts' emoticon recognising tokeniser.
 # http://sentiment.christopherpotts.net/tokenizing.html

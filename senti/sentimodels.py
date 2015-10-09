@@ -14,7 +14,7 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
-from senti.utils import HeadSr, compose
+from senti.utils import compose
 
 __all__ = ['SentiModels']
 
@@ -41,7 +41,7 @@ class SentiModels:
         tokenize_insense = CachedFitTransform(Pipeline([
             ('tokenize', tokenize_sense), ('normalize', MapTokens(str.lower)),
         ]), self.memory)
-        features = [
+        features = FeatureUnion([
             ('word_n_grams', FeatureUnion([(n, CachedFitTransform(Pipeline([
                 ('tokenize', tokenize_insense),
                 ('negation_append', NegationAppend()),
@@ -97,12 +97,9 @@ class SentiModels:
                 ('tokenize', tokenize_insense),
                 ('feature', NegationCount()),
             ])),
-        ]
-        name = 'svm({})'.format(','.join(name for name, _ in features))
-        estimator = Pipeline([
-            ('features', FeatureUnion(features)),
-            ('svm', LinearSVC(C=0.005)),
         ])
+        name = 'svm({})'.format(','.join(name for name, _ in features.transformer_list))
+        estimator = Pipeline([('features', features), ('svm', LinearSVC(C=0.005))])
         estimator.fit(self.train_docs, self.train_labels)
         return name, estimator
 
@@ -111,19 +108,19 @@ class SentiModels:
             ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
-        features = [
+        features = FeatureUnion([
             ('w2v_doc', CachedFitTransform(FixedTransformWrapper(Pipeline([
                 ('tokenize', tokenize_sense),
                 ('feature', Doc2VecTransform(
                     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
                 )),
-            ])), self.memory).fit([self.train_docs, HeadSr(self.unsup_docs, 10**6), self.dev_docs, self.test_docs])),
+            ])), self.memory).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])),
             # ('w2v_word_avg', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     )),
-            # ]), self.memory).fit(HeadSr(self.unsup_docs, 10**6))),
+            # ]), self.memory).fit(self.unsup_docs[:10**6])),
             # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', (Word2VecAverage(
@@ -135,22 +132,18 @@ class SentiModels:
             #     ('feature', Word2VecMax(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
-            # ]), self.memory).fit(HeadSr(self.unsup_docs, 10**6))),
+            # ]), self.memory).fit(self.unsup_docs[:10**6])),
             # ('w2v_word_inv', CachedFitTransform(FixedTransformWrapper(Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecInverse(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ))
-            # ])), self.memory).fit([HeadSr(self.unsup_docs, 10**5), self.dev_docs, self.test_docs])),
-        ]
-        name = 'logreg({})'.format(','.join(name for name, estimator in features))
-        feature_union = FeatureUnion(features)
-        classifier = LogisticRegression()
-        classifier.fit(feature_union.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
-        estimator = Pipeline([
-            ('features', feature_union),
-            ('logreg', classifier),
+            # ])), self.memory).fit([self.unsup_docs[:10**5], self.dev_docs, self.test_docs])),
         ])
+        name = 'logreg({})'.format(','.join(name for name, _ in features.transformer_list))
+        classifier = LogisticRegression()
+        classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
+        estimator = Pipeline([('features', features), ('logreg', classifier)])
         return name, estimator
 
     def fit_cnn(self):
@@ -169,15 +162,25 @@ class SentiModels:
             )),
             ('clip', Clip(56))
         ])
+        distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
+        feature.fit(distant_docs)
         feature.fit(self.dev_docs)
-        estimator = Pipeline(feature.steps + [
-            ('cnn', ConvNet(
-                batch_size=50, shuffle_batch=True, n_epochs=6, dev_X=feature.transform(self.dev_docs),
-                dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2],
-                embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-                dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), non_static=True,
-                lr_decay=0.95, norm_lim=3
-            )),
-        ])
-        estimator.fit(self.train_docs, self.train_labels)
+        feature.fit(self.train_docs)
+        classifier = ConvNet(
+            batch_size=50, embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
+            hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
+            non_static=True, lr_decay=0.95, norm_lim=3
+        )
+        fit_args = dict(
+            dev_X=feature.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2]
+        )
+        classifier.fit(
+            feature.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
+            shuffle_batch=False, n_epochs=1, **fit_args
+        )
+        classifier.fit(
+            feature.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
+            shuffle_batch=True, n_epochs=16, **fit_args
+        )
+        estimator = Pipeline([('features', feature), ('logreg', classifier)])
         return name, estimator
