@@ -169,7 +169,7 @@ class SentiModels:
         classifier = ConvNet(
             batch_size=50, embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
             hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
-            non_static=True, lr_decay=0.95, norm_lim=3
+            static_mode=2, lr_decay=0.95, norm_lim=3
         )
         fit_args = dict(
             dev_X=feature.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2]

@@ -34,39 +34,47 @@ class ConvNet(BaseEstimator):
         self.network = None
 
     def _create_model(
-        self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, non_static,
+        self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, static_mode,
         lr_decay, norm_lim
     ):
         constraints = {}
         self.X = T.imatrix('X')
         self.y = T.ivector('y')
-        network = lasagne.layers.InputLayer((self.batch_size, img_h), self.X)
-        network = lasagne.layers.EmbeddingLayer(network, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
-        if not non_static:
-            constraints[network.W] = lambda v: network.W
-        network = lasagne.layers.DimshuffleLayer(network, (0, 2, 1))
-        convs = []
+        net = lasagne.layers.InputLayer((self.batch_size, img_h), self.X)
+        embedding_nets = []
+        if static_mode in (0, 2):
+            cur_net = lasagne.layers.EmbeddingLayer(net, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            constraints[cur_net.W] = lambda u, v: u
+            cur_net = lasagne.layers.DimshuffleLayer(cur_net, (0, 2, 1))
+            embedding_nets.append(cur_net)
+        if static_mode in (1, 2):
+            cur_net = lasagne.layers.EmbeddingLayer(net, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            cur_net = lasagne.layers.DimshuffleLayer(cur_net, (0, 2, 1))
+            embedding_nets.append(cur_net)
+        conv_nets = []
         for filter_h in filter_hs:
-            conv = network
-            conv = lasagne.layers.Conv1DLayer(conv, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear)
-            conv = lasagne.layers.MaxPool1DLayer(conv, img_h + filter_h - 1, ignore_border=True)
-            conv = lasagne.layers.FlattenLayer(conv)
-            convs.append(conv)
-        network = lasagne.layers.ConcatLayer(convs)
-        network = lasagne.layers.DropoutLayer(network, dropout_rates[0])
+            cur_nets = list(lasagne.layers.Conv1DLayer(
+                cur_net, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear
+            ) for cur_net in embedding_nets)
+            cur_net = lasagne.layers.ElemwiseSumLayer(cur_nets)
+            cur_net = lasagne.layers.MaxPool1DLayer(cur_net, img_h + filter_h - 1, ignore_border=True)
+            cur_net = lasagne.layers.FlattenLayer(cur_net)
+            conv_nets.append(cur_net)
+        net = lasagne.layers.ConcatLayer(conv_nets)
+        net = lasagne.layers.DropoutLayer(net, dropout_rates[0])
         for n, activation, dropout in zip(hidden_units[1:-1], activations, dropout_rates[1:]):
-            network = lasagne.layers.DenseLayer(network, n, nonlinearity=activation)
-            constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
-            network = lasagne.layers.DropoutLayer(network, dropout)
-        network = lasagne.layers.DenseLayer(network, hidden_units[-1], nonlinearity=softmax)
-        constraints[network.W] = lambda v: lasagne.updates.norm_constraint(v, norm_lim)
-        self.network = network
+            net = lasagne.layers.DenseLayer(net, n, nonlinearity=activation)
+            constraints[net.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+            net = lasagne.layers.DropoutLayer(net, dropout)
+        net = lasagne.layers.DenseLayer(net, hidden_units[-1], nonlinearity=softmax)
+        constraints[net.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+        self.network = net
         self.prediction_probs = lasagne.layers.get_output(self.network, deterministic=True)
-        self.loss = -T.mean(T.log(lasagne.layers.get_output(network))[T.arange(self.y.shape[0]), self.y])
-        params = lasagne.layers.get_all_params(network, trainable=True)
+        self.loss = -T.mean(T.log(lasagne.layers.get_output(net))[T.arange(self.y.shape[0]), self.y])
+        params = lasagne.layers.get_all_params(net, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
         for param, constraint in constraints.items():
-            self.updates[param] = constraint(self.updates[param])
+            self.updates[param] = constraint(param, self.updates[param])
 
     def fit(self, X, y, shuffle_batch, n_epochs, dev_X, dev_y, average_classes):
         if not self.network:
