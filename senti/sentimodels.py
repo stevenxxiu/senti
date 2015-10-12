@@ -99,7 +99,7 @@ class SentiModels:
             ])),
         ])
         name = 'svm({})'.format(','.join(name for name, _ in features.transformer_list))
-        estimator = Pipeline([('features', features), ('svm', LinearSVC(C=0.005))])
+        estimator = Pipeline([('features', features), ('classifier', LinearSVC(C=0.005))])
         estimator.fit(self.train_docs, self.train_labels)
         return name, estimator
 
@@ -143,7 +143,7 @@ class SentiModels:
         name = 'logreg({})'.format(','.join(name for name, _ in features.transformer_list))
         classifier = LogisticRegression()
         classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
-        estimator = Pipeline([('features', features), ('logreg', classifier)])
+        estimator = Pipeline([('features', features), ('classifier', classifier)])
         return name, estimator
 
     def fit_cnn(self):
@@ -151,7 +151,7 @@ class SentiModels:
         name = 'cnn(use_w2v={})'.format(use_w2v)
         feature = Pipeline([
             ('tokenize', CachedFitTransform(Pipeline([
-                ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+                ('tokenize', Map(compose([tokenize, normalize_special]))),
                 ('normalize', MapTokens(normalize_elongations)),
             ]), self.memory)),
             ('index', WordIndex(
@@ -169,7 +169,7 @@ class SentiModels:
         classifier = ConvNet(
             batch_size=50, embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
             hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
-            static_mode=2, lr_decay=0.95, norm_lim=3
+            static_mode=1, lr_decay=0.95, norm_lim=3
         )
         fit_args = dict(
             dev_X=feature.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2]
@@ -182,5 +182,5 @@ class SentiModels:
             feature.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
             shuffle_batch=True, n_epochs=16, **fit_args
         )
-        estimator = Pipeline([('features', feature), ('logreg', classifier)])
+        estimator = Pipeline([('features', feature), ('classifier', classifier)])
         return name, estimator
