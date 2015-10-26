@@ -181,10 +181,10 @@ class SentiModels:
             dev_X=features.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'),
             average_classes=[0, 2]
         )
-        # classifier.fit(
-        #     features.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
-        #     shuffle_batch=False, n_epochs=1, **fit_args
-        # )
+        classifier.fit(
+            features.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
+            shuffle_batch=False, n_epochs=1, **fit_args
+        )
         classifier.fit(
             features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
             shuffle_batch=True, n_epochs=16, **fit_args
