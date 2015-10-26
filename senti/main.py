@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import itertools
 import json
 import os
 from contextlib import ExitStack
@@ -8,7 +9,6 @@ import numpy as np
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
 from senti.rand import set_rng
-import itertools
 from senti.score import *
 from senti.sentimodels import *
 from senti.utils import *

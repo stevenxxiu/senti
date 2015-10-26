@@ -4,10 +4,41 @@ from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable, sparse_sum, vstack
 
-__all__ = ['FixedTransformWrapper', 'Map', 'MapTokens', 'Index', 'Count', 'Proportion', 'Clip']
+__all__ = ['AsCorporas', 'MapCorporas', 'MergeSliceCorporas', 'Map', 'MapTokens', 'Index', 'Count', 'Proportion', 'Clip']
 
 
-class FixedTransformWrapper(BaseEstimator):
+class AsCorporas(BaseEstimator):
+    def __init__(self, estimator):
+        self.estimator = estimator
+
+    def get_params(self, deep=True):
+        return self.estimator.get_params(deep)
+
+    def fit(self, docs, y=None):
+        self.estimator.fit([docs])
+        return self
+
+    def transform(self, docs):
+        return self.estimator.transform([docs])[0]
+
+
+class MapCorporas(BaseEstimator):
+    def __init__(self, estimator):
+        self.estimator = estimator
+
+    def get_params(self, deep=True):
+        return self.estimator.get_params(deep)
+
+    def fit(self, corporas, y=None):
+        for corpora in corporas:
+            self.estimator.fit(corpora, y)
+        return self
+
+    def transform(self, corporas):
+        return list(map(self.estimator.transform, corporas))
+
+
+class MergeSliceCorporas(BaseEstimator):
     def __init__(self, estimator):
         self.estimator = estimator
         self._corporas = []
@@ -33,12 +64,16 @@ class FixedTransformWrapper(BaseEstimator):
         self.estimator.fit(self._chain_docs(corporas), y)
         return self
 
-    def transform(self, docs):
-        try:
-            i = self._corporas.index(docs)
-        except IndexError:
-            raise ValueError('docs were not fitted')
-        return self.estimator.transform(docs)[self._corporas_start[i]:self._corporas_end[i]]
+    def transform(self, corporas):
+        transformed = self.estimator.transform(None)
+        res = []
+        for corpora in corporas:
+            try:
+                i = self._corporas.index(corpora)
+            except IndexError:
+                raise ValueError('docs were not fitted')
+            res.append(transformed[self._corporas_start[i]:self._corporas_end[i]])
+        return res
 
 
 class Map(BaseEstimator):

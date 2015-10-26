@@ -110,11 +110,11 @@ class Reiterable:
         self.func = func
         self.args = args
 
-    def __hash__(self):
-        return hash((self.func, self.args))
-
     def __eq__(self, other):
-        return self.func == other.func and self.args == other.args
+        try:
+            return self.func == other.func and self.args == other.args
+        except AttributeError:
+            return False
 
     def __iter__(self):
         yield from self.func(*self.args)
@@ -132,7 +132,10 @@ class Compose:
         self.funcs = funcs
 
     def __eq__(self, other):
-        return self.funcs == other.funcs
+        try:
+            return self.funcs == other.funcs
+        except AttributeError:
+            return False
 
     def __call__(self, *args, **kwargs):
         res = self.funcs[-1](*args, **kwargs)

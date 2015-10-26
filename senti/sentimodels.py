@@ -98,10 +98,9 @@ class SentiModels:
                 ('feature', NegationCount()),
             ])),
         ])
-        name = 'svm({})'.format(','.join(name for name, _ in features.transformer_list))
         estimator = Pipeline([('features', features), ('classifier', LinearSVC(C=0.005))])
         estimator.fit(self.train_docs, self.train_labels)
-        return name, estimator
+        return 'svm({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
     def fit_logreg(self):
         tokenize_sense = CachedFitTransform(Pipeline([
@@ -109,78 +108,86 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
-            ('w2v_doc', CachedFitTransform(FixedTransformWrapper(Pipeline([
-                ('tokenize', tokenize_sense),
-                ('feature', Doc2VecTransform(
+            ('w2v_doc', AsCorporas(Pipeline([
+                ('tokenize', MapCorporas(tokenize_sense)),
+                ('feature', CachedFitTransform(MergeSliceCorporas(Doc2VecTransform(Doc2Vec(
                     cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-                )),
-            ])), self.memory).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])),
-            # ('w2v_word_avg', CachedFitTransform(Pipeline([
+                ))), self.memory)),
+            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
+            # ('w2v_word_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
-            #     ('feature', Word2VecAverage(
+            #     ('feature', Word2VecAverage(CachedFitTransform(Word2Vec(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     )),
-            # ]), self.memory).fit(self.unsup_docs[:10**6])),
-            # ('w2v_word_avg_google', CachedFitTransform(Pipeline([
+            #     ), self.memory))),
+            # ]).fit(self.unsup_docs[:10**6])),
+            # ('w2v_word_avg_google', Pipeline([
             #     ('tokenize', tokenize_sense),
-            #     ('feature', (Word2VecAverage(
+            #     ('feature', (Word2VecAverage(CachedFitTransform(Word2Vec(
             #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
-            #     )))
-            # ]), self.memory)),
-            # ('w2v_word_max', CachedFitTransform(Pipeline([
+            #     ), self.memory)))),
+            # ])),
+            # ('w2v_word_max', Pipeline([
             #     ('tokenize', tokenize_sense),
-            #     ('feature', Word2VecMax(
+            #     ('feature', Word2VecMax(CachedFitTransform(Word2Vec(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     ))
-            # ]), self.memory).fit(self.unsup_docs[:10**6])),
-            # ('w2v_word_inv', CachedFitTransform(FixedTransformWrapper(Pipeline([
-            #     ('tokenize', tokenize_sense),
-            #     ('feature', Word2VecInverse(
+            #     ), self.memory))),
+            # ]).fit(self.unsup_docs[:10**6])),
+            # ('w2v_word_inv', ToCorpora(Pipeline([
+            #     ('tokenize', MapCorporas(tokenize_sense)),
+            #     ('feature', CachedFitTransform(MergeSliceCorporas(Word2VecInverse(Doc2Vec(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     ))
+            #     ))), self.memory)),
             # ])), self.memory).fit([self.unsup_docs[:10**5], self.dev_docs, self.test_docs])),
         ])
-        name = 'logreg({})'.format(','.join(name for name, _ in features.transformer_list))
         classifier = LogisticRegression()
         classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
         estimator = Pipeline([('features', features), ('classifier', classifier)])
-        return name, estimator
+        return 'logreg({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
     def fit_cnn(self):
-        use_w2v = True
-        name = 'cnn(use_w2v={})'.format(use_w2v)
-        feature = Pipeline([
-            ('tokenize', CachedFitTransform(Pipeline([
-                ('tokenize', Map(compose([tokenize, normalize_special]))),
-                ('normalize', MapTokens(normalize_elongations)),
-            ]), self.memory)),
-            ('index', WordIndex(
-                # 0.25 is chosen so the unknown vectors have (approximately) same variance as pre-trained ones
-                lambda: get_rng().uniform(-0.25, 0.25, 300),
-                joblib.load('../google/GoogleNews-vectors-negative300.pickle') if use_w2v else None,
-                include_zero=True
-            )),
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose([tokenize, normalize_special]))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        embedding_type = 'twitter'
+        if embedding_type == 'google':
+            embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+        elif embedding_type == 'twitter':
+            embeddings_ = Pipeline([
+                ('tokenize', MapCorporas(tokenize_sense)),
+                ('word2vec', MergeSliceCorporas(CachedFitTransform(Word2Vec(
+                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+                ), self.memory)))
+            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
+            embeddings_ = embeddings_.named_steps['word2vec'].estimator
+        else:
+            embeddings_ = np.empty((0, 300))
+        features = Pipeline([
+            ('tokenize', tokenize_sense),
+            # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
+            ('index', EmbeddingConstructor(embeddings_, lambda shape: get_rng().uniform(-0.25, 0.25, shape), True)),
             ('clip', Clip(56))
         ])
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
-        feature.fit(distant_docs)
-        feature.fit(self.dev_docs)
-        feature.fit(self.train_docs)
+        features.fit(distant_docs)
+        features.fit(self.dev_docs)
+        features.fit(self.train_docs)
         classifier = ConvNet(
-            batch_size=50, embeddings=feature.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
+            batch_size=50, embeddings=features.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
             hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
             static_mode=1, lr_decay=0.95, norm_lim=3
         )
         fit_args = dict(
-            dev_X=feature.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'), average_classes=[0, 2]
+            dev_X=features.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'),
+            average_classes=[0, 2]
         )
+        # classifier.fit(
+        #     features.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
+        #     shuffle_batch=False, n_epochs=1, **fit_args
+        # )
         classifier.fit(
-            feature.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
-            shuffle_batch=False, n_epochs=1, **fit_args
-        )
-        classifier.fit(
-            feature.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
+            features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
             shuffle_batch=True, n_epochs=16, **fit_args
         )
-        estimator = Pipeline([('features', feature), ('classifier', classifier)])
-        return name, estimator
+        estimator = Pipeline([('features', features), ('classifier', classifier)])
+        return 'cnn(embedding={})'.format(embedding_type), estimator

@@ -6,10 +6,10 @@ from collections import defaultdict
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['Word2Vec', 'Doc2Vec', 'Doc2VecTransform', 'Word2VecAverage', 'Word2VecMax', 'Word2VecInverse']
+__all__ = ['Word2Vec', 'Doc2Vec', 'Word2VecAverage', 'Word2VecMax', 'Doc2VecTransform', 'Word2VecInverse']
 
 
-class Word2VecBase:
+class Word2VecBase(BaseEstimator):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
@@ -26,7 +26,7 @@ class Word2Vec(Word2VecBase):
         self.word_to_index = {}
         self.X = None
 
-    def fit(self, docs):
+    def fit(self, docs, rand=None):
         with open('sentences.txt', 'w', encoding='utf-8') as sr:
             for doc in docs:
                 sr.write('{}\n'.format(' '.join(doc)))
@@ -76,9 +76,6 @@ class FeatureBase(BaseEstimator):
 
 
 class Word2VecAverage(FeatureBase):
-    def __init__(self, word2vec=None, **kwargs):
-        super().__init__(word2vec or Word2Vec(**kwargs))
-
     def transform(self, docs):
         vecs = []
         words, X = self.word2vec.word_to_index, self.word2vec.X
@@ -92,9 +89,6 @@ class Word2VecMax(FeatureBase):
     Component-wise abs max. Doesn't make much sense because the components aren't importance, but worth a try.
     '''
 
-    def __init__(self, word2vec=None, **kwargs):
-        super().__init__(word2vec or Word2Vec(**kwargs))
-
     def transform(self, docs):
         vecs = []
         words, X = self.word2vec.word_to_index, self.word2vec.X
@@ -106,9 +100,6 @@ class Word2VecMax(FeatureBase):
 
 
 class Doc2VecTransform(FeatureBase):
-    def __init__(self, **kwargs):
-        super().__init__(Doc2Vec(**kwargs))
-
     def transform(self, docs):
         return self.word2vec.X
 
@@ -118,8 +109,8 @@ class Word2VecInverse(FeatureBase):
     Performs a document embedding.
     '''
 
-    def __init__(self, docs_min=10, docs_max=2000, **kwargs):
-        super().__init__(Word2Vec(**kwargs))
+    def __init__(self, word2vec, docs_min=10, docs_max=2000):
+        super().__init__(word2vec)
         self.docs_min = docs_min
         self.docs_max = docs_max
 

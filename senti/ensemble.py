@@ -6,6 +6,7 @@ import os
 import numpy as np
 from scipy.optimize import minimize_scalar
 from sklearn.metrics import precision_recall_fscore_support
+from sklearn.preprocessing import LabelEncoder
 
 from senti.score import *
 from senti.utils import *
@@ -48,10 +49,12 @@ def main():
     # write predictions
     with open('dev.json') as dev_sr, open('results/{}.json'.format(pipeline_name), 'w') as results_sr:
         for line, probs in zip(dev_sr, all_probs):
-            indexes = indexes_of(classes, [0, 1, 2])
+            indexes = LabelEncoder().fit(classes).transform([0, 1, 2])
             results_sr.write(json.dumps({
                 'id': json.loads(line)['id'], 'label': int(classes[np.argmax(probs)]),
-                'prob_neg': probs[indexes[0]], 'prob_nt': probs[indexes[1]], 'prob_pos': probs[indexes[2]]
+                'prob_neg': float(probs[indexes[0]]),
+                'prob_nt': float(probs[indexes[1]]),
+                'prob_pos': float(probs[indexes[2]])
             }) + '\n')
 
     # write scores

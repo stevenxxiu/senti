@@ -4,14 +4,14 @@ from collections import Counter
 import numpy as np
 from sklearn.base import BaseEstimator
 
-__all__ = ['WordIndex']
+__all__ = ['EmbeddingConstructor']
 
 
-class WordIndex(BaseEstimator):
-    def __init__(self, rand_vec, embeddings=None, include_zero=True, min_df=1):
-        self.rand_vec = rand_vec
+class EmbeddingConstructor(BaseEstimator):
+    def __init__(self, embeddings, rand, include_zero=True, min_df=1):
         self.embeddings = embeddings
-        self.X = np.zeros((int(include_zero), rand_vec().shape[0]))
+        self.rand = rand
+        self.X = np.zeros((int(include_zero), embeddings.X.shape[1]))
         self.word_to_index = {}
         self.include_zero = include_zero
         self.min_df = min_df
@@ -28,7 +28,7 @@ class WordIndex(BaseEstimator):
                 if self.embeddings and word in self.embeddings.word_to_index:
                     vecs.append(self.embeddings.X[self.embeddings.word_to_index[word]])
                 else:
-                    vecs.append(self.rand_vec())
+                    vecs.append(self.rand(self.X.shape[1]))
         self.X = np.vstack([self.X] + vecs)
         return self
 
