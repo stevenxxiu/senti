@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
 from senti.rand import set_rng
 from senti.score import *
-from senti.sentimodels import *
+from senti.senti_models import *
 from senti.utils import *
 
 
