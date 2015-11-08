@@ -10,6 +10,7 @@ from sklearn.svm import LinearSVC
 
 from senti.cache import CachedFitTransform
 from senti.features import *
+from senti.gensim_ext import *
 from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
@@ -108,34 +109,39 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
-            # ('w2v_doc', AsCorporas(Pipeline([
-            #     ('tokenize', MapCorporas(tokenize_sense)),
-            #     ('feature', CachedFitTransform(MergeSliceCorporas(Doc2VecTransform(Doc2Vec(
-            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     ))), self.memory)),
-            # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
+            ('w2v_doc', AsCorporas(Pipeline([
+                ('tokenize', MapCorporas(tokenize_sense)),
+                ('feature', MergeSliceCorporas(Doc2VecTransform(CachedFitTransform(Doc2Vec(
+                    dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
+                    workers=16, batch_target=10000
+                ), self.memory)))),
+            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
             # ('w2v_word_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(CachedFitTransform(Word2Vec(
-            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+            #         sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
             #     ), self.memory))),
             # ]).fit(self.unsup_docs[:10**6])),
-            ('w2v_word_avg_google', Pipeline([
-                ('tokenize', tokenize_sense),
-                ('feature', (Word2VecAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle')))),
-            ])),
+            # ('w2v_word_avg_google', Pipeline([
+            #     ('tokenize', tokenize_sense),
+            #     ('feature', Word2VecAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+            # ])),
             # ('w2v_word_max', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(CachedFitTransform(Word2Vec(
-            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+            #         sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
             #     ), self.memory))),
             # ]).fit(self.unsup_docs[:10**6])),
-            # ('w2v_word_inv', ToCorpora(Pipeline([
+            # ('w2v_word_max_google', Pipeline([
+            #     ('tokenize', tokenize_sense),
+            #     ('feature', Word2VecMax(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+            # ])),
+            # ('w2v_word_inv', AsCorporas(Pipeline([
             #     ('tokenize', MapCorporas(tokenize_sense)),
-            #     ('feature', CachedFitTransform(MergeSliceCorporas(Word2VecInverse(Doc2Vec(
-            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-            #     ))), self.memory)),
-            # ])), self.memory).fit([self.unsup_docs[:10**5], self.dev_docs, self.test_docs])),
+            #     ('feature', MergeSliceCorporas(Word2VecInverse(CachedFitTransform(Word2Vec(
+            #         sg=1, size=100, window=10, hs=0, negative=5, sample=0, min_count=1, iter=20, workers=16
+            #     ), self.memory)))),
+            # ]).fit([self.train_docs, self.unsup_docs[:10**5], self.dev_docs, self.test_docs]))),
         ])
         classifier = LogisticRegression()
         classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
@@ -154,7 +160,7 @@ class SentiModels:
             embeddings_ = Pipeline([
                 ('tokenize', MapCorporas(tokenize_sense)),
                 ('word2vec', MergeSliceCorporas(CachedFitTransform(Word2Vec(
-                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+                    sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
                 ), self.memory)))
             ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
             embeddings_ = embeddings_.named_steps['word2vec'].estimator
