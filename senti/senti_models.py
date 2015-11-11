@@ -108,24 +108,22 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
-            ('w2v_doc', AsCorporas(Pipeline([
-                ('tokenize', MapCorporas(tokenize_sense)),
-                ('feature', CachedFitTransform(MergeSliceCorporas(Doc2VecTransform(Doc2Vec(
-                    cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
-                ))), self.memory)),
-            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
+            # ('w2v_doc', AsCorporas(Pipeline([
+            #     ('tokenize', MapCorporas(tokenize_sense)),
+            #     ('feature', CachedFitTransform(MergeSliceCorporas(Doc2VecTransform(Doc2Vec(
+            #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
+            #     ))), self.memory)),
+            # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
             # ('w2v_word_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(CachedFitTransform(Word2Vec(
             #         cbow=0, size=100, window=10, negative=5, hs=0, sample=1e-4, threads=64, iter=20, min_count=1
             #     ), self.memory))),
             # ]).fit(self.unsup_docs[:10**6])),
-            # ('w2v_word_avg_google', Pipeline([
-            #     ('tokenize', tokenize_sense),
-            #     ('feature', (Word2VecAverage(CachedFitTransform(Word2Vec(
-            #         word2vec=joblib.load('../google/GoogleNews-vectors-negative300.pickle')
-            #     ), self.memory)))),
-            # ])),
+            ('w2v_word_avg_google', Pipeline([
+                ('tokenize', tokenize_sense),
+                ('feature', (Word2VecAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle')))),
+            ])),
             # ('w2v_word_max', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(CachedFitTransform(Word2Vec(
