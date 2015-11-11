@@ -4,8 +4,9 @@ from collections import defaultdict
 import numpy as np
 from gensim.models.doc2vec import TaggedDocument
 from sklearn.base import BaseEstimator
+from sklearn.preprocessing import normalize
 
-__all__ = ['Word2VecAverage', 'Word2VecMax', 'Word2VecInverse', 'Doc2VecTransform']
+__all__ = ['Word2VecAverage', 'Word2VecNormAverage', 'Word2VecMax', 'Word2VecInverse', 'Doc2VecTransform']
 
 
 class Word2VecBase(BaseEstimator):
@@ -25,6 +26,15 @@ class Word2VecAverage(Word2VecBase):
         for doc in docs:
             words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
             vecs.append(np.mean(words_matrix, axis=0))
+        return np.vstack(vecs)
+
+
+class Word2VecNormAverage(Word2VecBase):
+    def transform(self, docs):
+        vecs = []
+        for doc in docs:
+            words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
+            vecs.append(normalize(np.mean(normalize(words_matrix), axis=0)))
         return np.vstack(vecs)
 
 

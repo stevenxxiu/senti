@@ -109,13 +109,13 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
-            ('w2v_doc', AsCorporas(Pipeline([
-                ('tokenize', MapCorporas(tokenize_sense)),
-                ('feature', MergeSliceCorporas(Doc2VecTransform(CachedFitTransform(Doc2Vec(
-                    dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
-                    workers=16, batch_target=10000
-                ), self.memory)))),
-            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
+            # ('w2v_doc', AsCorporas(Pipeline([
+            #     ('tokenize', MapCorporas(tokenize_sense)),
+            #     ('feature', MergeSliceCorporas(Doc2VecTransform(CachedFitTransform(Doc2Vec(
+            #         dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
+            #         workers=16, batch_target=10000
+            #     ), self.memory)))),
+            # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
             # ('w2v_word_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(CachedFitTransform(Word2Vec(
@@ -126,6 +126,16 @@ class SentiModels:
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
             # ])),
+            # ('w2v_word_norm_avg', Pipeline([
+            #     ('tokenize', tokenize_sense),
+            #     ('feature', Word2VecNormAverage(CachedFitTransform(Word2Vec(
+            #         sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
+            #     ), self.memory))),
+            # ]).fit(self.unsup_docs[:10**6])),
+            ('w2v_word_norm_avg_google', Pipeline([
+                ('tokenize', tokenize_sense),
+                ('feature', Word2VecNormAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+            ])),
             # ('w2v_word_max', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(CachedFitTransform(Word2Vec(
