@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 from scipy import sparse
+
 from wrapt import ObjectProxy
 
 __all__ = [

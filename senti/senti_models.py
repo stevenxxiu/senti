@@ -158,6 +158,18 @@ class SentiModels:
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'logreg({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
+    def fit_word2vec_bayes(self):
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        estimator = Pipeline([
+            ('tokenize', tokenize_sense),
+            ('classifier', Word2VecBayes(Word2Vec(workers=16)))
+        ])
+        estimator.fit(self.train_docs, np.fromiter(self.train_labels, 'int32'))
+        return 'word2vec_bayes', estimator
+
     def fit_cnn(self):
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', Map(compose([tokenize, normalize_special]))),

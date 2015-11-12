@@ -42,7 +42,8 @@ def main():
         senti_models = SentiModels(
             train_docs, train_labels, distant_docs, distant_labels, unsup_docs, dev_docs, dev_labels, test_docs
         )
-        pipeline_name, pipeline = senti_models.fit_logreg()
+        # pipeline_name, pipeline = senti_models.fit_logreg()
+        pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
         # pipeline_name, pipeline = senti_models.fit_cnn()
         classes = pipeline.classes_
