@@ -7,7 +7,7 @@ import os
 from contextlib import ExitStack
 
 import numpy as np
-from sklearn.preprocessing import LabelBinarizer, LabelEncoder
+from sklearn.preprocessing import LabelBinarizer
 
 from senti.rand import set_rng
 from senti.score import *
@@ -42,11 +42,11 @@ def main():
         senti_models = SentiModels(
             train_docs, train_labels, distant_docs, distant_labels, unsup_docs, dev_docs, dev_labels, test_docs
         )
+        # pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
         pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
         # pipeline_name, pipeline = senti_models.fit_cnn()
-        classes = pipeline.classes_
 
         # test_data = [('dev', dev_docs, dev_labels)]
         test_data = [('dev', dev_docs, dev_labels), ('test', test_docs, test_labels)]
@@ -57,20 +57,17 @@ def main():
             try:
                 all_probs = pipeline.predict_proba(docs)
             except AttributeError:
-                all_probs = LabelBinarizer().fit(classes).transform(pipeline.predict(docs))
+                all_probs = LabelBinarizer().fit(pipeline.classes_).transform(pipeline.predict(docs))
             with open('{}.json'.format(name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
                 for line, probs in zip(sr, all_probs):
-                    indexes = LabelEncoder().fit(classes).transform([0, 1, 2])
                     results_sr.write(json.dumps({
-                        'id': json.loads(line)['id'], 'label': int(classes[np.argmax(probs)]),
-                        'prob_neg': float(probs[indexes[0]]),
-                        'prob_nt': float(probs[indexes[1]]),
-                        'prob_pos': float(probs[indexes[2]]),
+                        'id': json.loads(line)['id'], 'label': int(pipeline.classes_[np.argmax(probs)]),
+                        'probs': [(c.item(), prob.item()) for c, prob in zip(pipeline.classes_, probs)]
                     }) + '\n')
             print('{} data: '.format(name))
             labels = np.fromiter(labels, dtype='int32')
-            write_score('results/{}/{}'.format(name, pipeline_name), labels, all_probs, classes, (0, 2))
+            write_score('results/{}/{}'.format(name, pipeline_name), labels, all_probs, pipeline.classes_, (0, 2))
 
 if __name__ == '__main__':
     main()
