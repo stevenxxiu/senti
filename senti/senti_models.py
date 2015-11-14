@@ -5,10 +5,9 @@ import joblib
 import numpy as np
 from joblib import Memory
 from lasagne.nonlinearities import identity, rectify
-from scipy.optimize import minimize_scalar
+from scipy.optimize import basinhopping
 from sklearn.ensemble import VotingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_fscore_support
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import Binarizer, LabelEncoder
 from sklearn.svm import LinearSVC
@@ -64,18 +63,20 @@ class SentiModels:
         }) for name in names]
         classifier_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
         label_encoder = LabelEncoder()
-        label_encoder.fit(self.dev_labels())
-
-        # noinspection PyTypeChecker
-        def neg_f1_weighted(w_):
-            all_probs = w_*classifier_probs[0] + (1 - w_)*classifier_probs[1]
-            pred_labels = label_encoder.classes_[np.argmax(all_probs, axis=1)]
-            precision, recall, fscore, _ = precision_recall_fscore_support(self.dev_labels(), pred_labels)
-            return -np.mean(fscore[np.array([0, 2])])
-
-        w = minimize_scalar(neg_f1_weighted, bounds=(0.75, 1), method='bounded').x
+        dev_label_indexes = label_encoder.fit_transform(self.dev_labels())
+        # assume w_0=1 as w is invariant to scaling
+        w = basinhopping(
+            lambda w_: -(
+                dev_label_indexes == np.argmax((
+                    classifier_probs*np.hstack([[1], w_]).reshape((len(w_) + 1, 1, 1))
+                ).sum(axis=0), axis=1)
+            ).sum(), get_rng().uniform(0, 1, len(classifiers) - 1),
+            minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)]*(len(classifiers) - 1))
+        ).x
+        w = np.hstack([[1], w])
+        w /= w.sum()
         print('w: {}'.format(w))
-        estimator = VotingClassifier(list(zip(names, classifiers)), voting='soft', weights=[w, 1 - w])
+        estimator = VotingClassifier(list(zip(names, classifiers)), voting='soft', weights=w)
         estimator.classes_ = label_encoder.classes_
         estimator.estimators_ = classifiers
         return 'vote({})'.format(','.join(names)), estimator
