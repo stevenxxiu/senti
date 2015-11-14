@@ -1,7 +1,9 @@
 
 import itertools
 import json
+import logging
 import sys
+from contextlib import contextmanager
 
 import numpy as np
 from scipy import sparse
@@ -10,7 +12,7 @@ from wrapt import ObjectProxy
 
 __all__ = [
     'Tee', 'PicklableSr', 'FieldExtractor', 'BalancedSlice', 'PicklableProxy', 'reiterable', 'compose', 'sparse_sum',
-    'vstack'
+    'vstack', 'temp_log_level'
 ]
 
 
@@ -145,6 +147,17 @@ class Compose:
         return res
 
 compose = Compose
+
+
+@contextmanager
+def temp_log_level(loggers_levels):
+    prev_levels = {}
+    for logger, level in loggers_levels.items():
+        prev_levels[logger] = logging.getLogger(logger).getEffectiveLevel()
+        logging.getLogger(logger).setLevel(level)
+    yield
+    for logger, level in prev_levels.items():
+        logging.getLogger(logger).setLevel(level)
 
 
 def sparse_sum(X, axis):

@@ -16,7 +16,7 @@ from senti.utils import *
 
 
 def main():
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s')
     os.chdir('data/twitter')
     with ExitStack() as stack:
         # load data

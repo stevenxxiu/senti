@@ -1,4 +1,6 @@
 
+import logging
+
 import joblib
 import numpy as np
 from joblib import Memory
@@ -15,7 +17,7 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
-from senti.utils import compose
+from senti.utils import compose, temp_log_level
 
 __all__ = ['SentiModels']
 
@@ -154,7 +156,8 @@ class SentiModels:
             # ]).fit([self.train_docs, self.unsup_docs[:10**5], self.dev_docs, self.test_docs]))),
         ])
         classifier = LogisticRegression()
-        classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
+        with temp_log_level({'gensim.models.word2vec': logging.INFO}):
+            classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'logreg({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
@@ -167,7 +170,8 @@ class SentiModels:
             ('tokenize', tokenize_sense),
             ('classifier', Word2VecBayes(Word2Vec(workers=16)))
         ])
-        estimator.fit(self.train_docs, np.fromiter(self.train_labels, 'int32'))
+        with temp_log_level({'senti.models.word2vec_bayes': logging.INFO, 'gensim.models.word2vec': logging.ERROR}):
+            estimator.fit(self.train_docs, np.fromiter(self.train_labels, 'int32'))
         return 'word2vec_bayes', estimator
 
     def fit_cnn(self):
