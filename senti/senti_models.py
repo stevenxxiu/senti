@@ -5,9 +5,12 @@ import joblib
 import numpy as np
 from joblib import Memory
 from lasagne.nonlinearities import identity, rectify
+from scipy.optimize import minimize_scalar
+from sklearn.ensemble import VotingClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import precision_recall_fscore_support
 from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.preprocessing import Binarizer
+from sklearn.preprocessing import Binarizer, LabelEncoder
 from sklearn.svm import LinearSVC
 
 from senti.cache import CachedFitTransform
@@ -22,19 +25,60 @@ from senti.utils import compose, temp_log_level
 __all__ = ['SentiModels']
 
 
+class LazyLabels:
+    def __init__(self, labels):
+        self.labels = labels
+        self.value = None
+
+    def __getitem__(self, item):
+        return type(self)(self.labels[item])
+
+    def __call__(self):
+        if self.value is None:
+            self.value = np.fromiter(self.labels, 'int32')
+        return self.value
+
+
 class SentiModels:
     def __init__(
-        self, train_docs, train_labels, distant_docs, distant_labels, unsup_docs, dev_docs, dev_labels, test_docs
+        self, unsup_docs, distant_docs, distant_labels, train_docs, train_labels, dev_docs, dev_labels, test_docs
     ):
-        self.train_docs = train_docs
-        self.train_labels = train_labels
-        self.distant_docs = distant_docs
-        self.distant_labels = distant_labels
         self.unsup_docs = unsup_docs
+        self.distant_docs = distant_docs
+        self.distant_labels = LazyLabels(distant_labels)
+        self.train_docs = train_docs
+        self.train_labels = LazyLabels(train_labels)
         self.dev_docs = dev_docs
+        self.dev_labels = LazyLabels(dev_labels)
         self.test_docs = test_docs
-        self.dev_labels = dev_labels
         self.memory = Memory(cachedir='cache', verbose=0)
+
+    def fit_voting(self):
+        names = [
+            'svm(word_n_grams,char_n_grams,all_caps,hashtags,punctuations,punctuation_last,emoticons,emoticon_last,'
+            'elongated,negation_count)',
+            'cnn(embedding=twitter)',
+        ]
+        classifiers = [ExternalModel({
+            self.dev_docs: 'results/dev/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
+        }) for name in names]
+        classifier_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
+        label_encoder = LabelEncoder()
+        label_encoder.fit(self.dev_labels())
+
+        # noinspection PyTypeChecker
+        def neg_f1_weighted(w_):
+            all_probs = w_*classifier_probs[0] + (1 - w_)*classifier_probs[1]
+            pred_labels = label_encoder.classes_[np.argmax(all_probs, axis=1)]
+            precision, recall, fscore, _ = precision_recall_fscore_support(self.dev_labels(), pred_labels)
+            return -np.mean(fscore[np.array([0, 2])])
+
+        w = minimize_scalar(neg_f1_weighted, bounds=(0.75, 1), method='bounded').x
+        print('w: {}'.format(w))
+        estimator = VotingClassifier(list(zip(names, classifiers)), voting='soft', weights=[w, 1 - w])
+        estimator.classes_ = label_encoder.classes_
+        estimator.estimators_ = classifiers
+        return 'vote({})'.format(','.join(names)), estimator
 
     def fit_svm(self):
         tokenize_raw = CachedFitTransform(Map(compose([tokenize, normalize_special, unescape])), self.memory)
@@ -102,7 +146,7 @@ class SentiModels:
             ])),
         ])
         estimator = Pipeline([('features', features), ('classifier', LinearSVC(C=0.005))])
-        estimator.fit(self.train_docs, self.train_labels)
+        estimator.fit(self.train_docs, self.train_labels())
         return 'svm({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
     def fit_logreg(self):
@@ -157,7 +201,7 @@ class SentiModels:
         ])
         classifier = LogisticRegression()
         with temp_log_level({'gensim.models.word2vec': logging.INFO}):
-            classifier.fit(features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'))
+            classifier.fit(features.transform(self.train_docs), self.train_labels())
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'logreg({})'.format(','.join(name for name, _ in features.transformer_list)), estimator
 
@@ -171,7 +215,7 @@ class SentiModels:
             ('classifier', Word2VecBayes(Word2Vec(workers=16)))
         ])
         with temp_log_level({'senti.models.word2vec_bayes': logging.INFO, 'gensim.models.word2vec': logging.ERROR}):
-            estimator.fit(self.train_docs, np.fromiter(self.train_labels, 'int32'))
+            estimator.fit(self.train_docs, self.train_labels())
         return 'word2vec_bayes', estimator
 
     def fit_cnn(self):
@@ -207,17 +251,12 @@ class SentiModels:
             hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
             static_mode=1, lr_decay=0.95, norm_lim=3
         )
-        fit_args = dict(
-            dev_X=features.transform(self.dev_docs), dev_y=np.fromiter(self.dev_labels, 'int32'),
-            average_classes=[0, 2]
+        fit_args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        classifier.fit(
+            features.transform(distant_docs), distant_labels(), shuffle_batch=False, n_epochs=1, **fit_args
         )
         classifier.fit(
-            features.transform(distant_docs), np.fromiter(distant_labels, 'int32'),
-            shuffle_batch=False, n_epochs=1, **fit_args
-        )
-        classifier.fit(
-            features.transform(self.train_docs), np.fromiter(self.train_labels, 'int32'),
-            shuffle_batch=True, n_epochs=16, **fit_args
+            features.transform(self.train_docs), self.train_labels(), shuffle_batch=True, n_epochs=16, **fit_args
         )
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn(embedding={})'.format(embedding_type), estimator
