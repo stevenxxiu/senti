@@ -53,9 +53,9 @@ class ConvNet(BaseEstimator):
             embedding_nets.append(cur_net)
         conv_nets = []
         for filter_h in filter_hs:
-            cur_nets = list(lasagne.layers.Conv1DLayer(
+            cur_nets = [lasagne.layers.Conv1DLayer(
                 cur_net, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear
-            ) for cur_net in embedding_nets)
+            ) for cur_net in embedding_nets]
             cur_net = lasagne.layers.ElemwiseSumLayer(cur_nets)
             cur_net = lasagne.layers.MaxPool1DLayer(cur_net, img_h + filter_h - 1, ignore_border=True)
             cur_net = lasagne.layers.FlattenLayer(cur_net)
@@ -120,7 +120,7 @@ class ConvNet(BaseEstimator):
             dev_f1 = np.mean(precision_recall_fscore_support(dev_res, dev_y)[2][average_classes])
             if dev_f1 >= best_perf:
                 best_perf = dev_f1
-                best_params = dict((param, param.get_value()) for param in params)
+                best_params = {param: param.get_value() for param in params}
             print('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
                 epoch + 1, train_loss, train_acc, dev_acc, dev_f1
             ))

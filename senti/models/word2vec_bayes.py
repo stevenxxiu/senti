@@ -25,10 +25,10 @@ class Word2VecBayes(BaseEstimator):
         self.joint_model.build_vocab(docs)
         self.classes_ = unique_labels(y)
         freqs = Counter(y)
-        self.class_scores = np.log(list(freqs[c] for c in self.classes_))
-        self.models = list(deepcopy(self.joint_model) for _ in self.classes_)
+        self.class_scores = np.log([freqs[c] for c in self.classes_])
+        self.models = [deepcopy(self.joint_model) for _ in self.classes_]
         for class_, model in zip(self.classes_, self.models):
-            cur_docs = list(doc for doc, c in zip(docs, y) if c == class_)
+            cur_docs = [doc for doc, c in zip(docs, y) if c == class_]
             for epoch in range(20):
                 logger.info('epoch {}'.format(epoch + 1))
                 np.random.shuffle(cur_docs)

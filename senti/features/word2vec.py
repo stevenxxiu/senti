@@ -76,7 +76,7 @@ class Doc2VecTransform(BaseEstimator):
         self.model = model
 
     def fit(self, docs, y=None):
-        docs = list(TaggedDocument(doc, [i]) for i, doc in enumerate(docs))
+        docs = [TaggedDocument(doc, [i]) for i, doc in enumerate(docs)]
         self.model.build_vocab(docs)
         self.model.fit(docs)
         return self

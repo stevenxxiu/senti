@@ -12,7 +12,7 @@ from senti.features import Emoticons
 def unique(seq):
     seen = set()
     seen_add = seen.add
-    return list(x for x in seq if not (x in seen or seen_add(x)))
+    return [x for x in seq if not (x in seen or seen_add(x))]
 
 
 def main():
@@ -62,7 +62,7 @@ def main():
     #             out_sr.write(line)
     retweet_re = re.compile(r'RT\s*"?[@＠][a-zA-Z0-9_]+:?')
     with open('emote.txt', encoding='utf-8') as in_sr, ExitStack() as stack:
-        out_srs = dict((i, stack.enter_context(open('emote_{}.txt'.format(i), 'w', encoding='utf-8'))) for i in [0, 2])
+        out_srs = {i: stack.enter_context(open('emote_{}.txt'.format(i), 'w', encoding='utf-8')) for i in [0, 2]}
         for i, line in enumerate(in_sr):
             if retweet_re.search(line):
                 continue

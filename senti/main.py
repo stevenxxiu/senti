@@ -23,7 +23,7 @@ def main():
         train_sr = stack.enter_context(open('train.json'))
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
-        distant_srs = list(stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2])
+        distant_srs = [stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
         distant_docs = BalancedSlice(distant_srs)
         distant_labels = BalancedSlice((itertools.repeat(0), itertools.repeat(2)))
         unsup_sr = stack.enter_context(open('unsup.txt', encoding='utf-8'))
