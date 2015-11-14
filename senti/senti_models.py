@@ -1,5 +1,6 @@
 
 import logging
+from types import SimpleNamespace
 
 import joblib
 import numpy as np
@@ -224,9 +225,10 @@ class SentiModels:
             ('tokenize', Map(compose([tokenize, normalize_special]))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
-        embedding_type = 'twitter'
+        embedding_type = 'google'
         if embedding_type == 'google':
             embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+            embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         elif embedding_type == 'twitter':
             embeddings_ = Pipeline([
                 ('tokenize', MapCorporas(tokenize_sense)),
@@ -235,8 +237,9 @@ class SentiModels:
                 ), self.memory)))
             ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
             embeddings_ = embeddings_.named_steps['word2vec'].estimator
+            embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         else:
-            embeddings_ = np.empty((0, 300))
+            embeddings_ = SimpleNamespace(X=np.empty((0, 300)), vocab={})
         features = Pipeline([
             ('tokenize', tokenize_sense),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
