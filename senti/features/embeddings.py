@@ -4,6 +4,8 @@ from collections import Counter
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from senti.utils import reiterable
+
 __all__ = ['EmbeddingConstructor']
 
 
@@ -32,6 +34,7 @@ class EmbeddingConstructor(BaseEstimator):
         self.X = np.vstack([self.X] + vecs)
         return self
 
+    @reiterable
     def transform(self, docs):
         for doc in docs:
             yield np.fromiter((self.vocab.get(word, 0) for word in doc), dtype='int32')
