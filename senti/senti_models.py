@@ -163,7 +163,7 @@ class SentiModels:
             #     ('tokenize', MapCorporas(tokenize_sense)),
             #     ('feature', MergeSliceCorporas(Doc2VecTransform(CachedFitTransform(Doc2Vec(
             #         dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
-            #         workers=16, batch_target=10000
+            #         workers=16
             #     ), self.memory)))),
             # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
             # ('w2v_word_avg', Pipeline([
@@ -216,7 +216,9 @@ class SentiModels:
         ]), self.memory)
         estimator = Pipeline([
             ('tokenize', tokenize_sense),
-            ('classifier', Word2VecBayes(Word2Vec(workers=16)))
+            ('classifier', Word2VecBayes(Word2Vec(
+                sg=1, size=100, window=10, hs=1, sample=0, min_count=5, workers=16
+            )))
         ])
         with temp_log_level({'senti.models.word2vec_bayes': logging.INFO, 'gensim.models.word2vec': logging.ERROR}):
             estimator.fit(self.train_docs, self.train_labels())
