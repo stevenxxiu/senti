@@ -224,42 +224,48 @@ class SentiModels:
             estimator.fit(self.train_docs, self.train_labels())
         return 'word2vec_bayes', estimator
 
-    def fit_cnn(self):
+    def fit_embedding(self, embedding_type, construct_docs):
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', Map(compose([tokenize, normalize_special]))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
-        embedding_type = 'google'
-        embeddings_ = None
         if embedding_type == 'google':
             embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         elif embedding_type == 'twitter':
-            embeddings_ = Pipeline([
+            estimator = Pipeline([
                 ('tokenize', MapCorporas(tokenize_sense)),
                 ('word2vec', MergeSliceCorporas(CachedFitTransform(Word2Vec(
                     sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
                 ), self.memory)))
             ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
-            embeddings_ = embeddings_.named_steps['word2vec'].estimator
+            embeddings_ = estimator.named_steps['word2vec'].estimator
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
-        elif embedding_type == 'none':
-            embeddings_ = SimpleNamespace(X=np.empty((0, 300)), vocab={})
-        features = Pipeline([
+        else:
+            embeddings_ = SimpleNamespace(X=np.empty((0, 100)), vocab={})
+        estimator = Pipeline([
             ('tokenize', tokenize_sense),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
-            ('index', EmbeddingConstructor(embeddings_, lambda shape: get_rng().uniform(-0.25, 0.25, shape), True)),
-            ('clip', Clip(56))
+            ('index', EmbeddingConstructor(
+                embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape), include_zero=True
+            ))
         ])
+        for docs in construct_docs:
+            estimator.fit(docs)
+        return estimator, estimator.named_steps['index']
+
+    def fit_cnn(self):
+        embedding_type = 'google'
+        construct_docs = [self.dev_docs, self.train_docs]
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
-        features.fit(distant_docs)
-        features.fit(self.dev_docs)
-        features.fit(self.train_docs)
+        construct_docs.append(distant_docs)
+        features, embeddings_ = self.fit_embedding(embedding_type, construct_docs)
         classifier = CNN(
-            batch_size=50, embeddings=features.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
-            hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
-            static_mode=1, lr_decay=0.95, norm_lim=3
+            batch_size=50, embeddings=embeddings_, img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
+            dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), static_mode=1,
+            lr_decay=0.95, norm_lim=3
         )
+        features = Pipeline([('index', features), ('clip', Clip(56))])
         fit_args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(distant_docs), distant_labels(), n_epochs=1, **fit_args)
         classifier.fit(features.transform(self.train_docs), self.train_labels(), n_epochs=10, **fit_args)
