@@ -36,7 +36,7 @@ def main():
         test_labels = FieldExtractor(test_sr, 'label')
 
         # fix seed for reproducibility
-        set_rng(np.random.RandomState(1000))
+        set_rng(np.random.RandomState(1234))
 
         # train
         senti_models = SentiModels(
