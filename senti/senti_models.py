@@ -55,23 +55,25 @@ class SentiModels:
 
     def fit_voting(self):
         names = [
-            'svm(word_n_grams,char_n_grams,all_caps,hashtags,punctuations,punctuation_last,emoticons,emoticon_last,'
-            'elongated,negation_count)',
-            'cnn(embedding=twitter)',
+            # 'svm(word_n_grams,char_n_grams,all_caps,hashtags,punctuations,punctuation_last,emoticons,emoticon_last,'
+            # 'elongated,negation_count)',
+            # 'logreg(w2v_doc)',
+            'logreg(w2v_word_avg_google)',
+            'word2vec_bayes',
+            'cnn(embedding=google)',
         ]
         classifiers = [ExternalModel({
             self.dev_docs: 'results/dev/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
         }) for name in names]
         classifier_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
+        classifier_probs_first, classifier_probs_rest = classifier_probs[0], classifier_probs[1:]
         label_encoder = LabelEncoder()
         dev_label_indexes = label_encoder.fit_transform(self.dev_labels())
         # assume w_0=1 as w is invariant to scaling
         w = basinhopping(
-            lambda w_: -(
-                dev_label_indexes == np.argmax((
-                    classifier_probs*np.hstack([[1], w_]).reshape((len(w_) + 1, 1, 1))
-                ).sum(axis=0), axis=1)
-            ).sum(), get_rng().uniform(0, 1, len(classifiers) - 1),
+            lambda w_: -(dev_label_indexes == np.argmax((
+                classifier_probs_first + classifier_probs_rest*w_.reshape((len(w_), 1, 1))
+            ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)]*(len(classifiers) - 1))
         ).x
         w = np.hstack([[1], w])
