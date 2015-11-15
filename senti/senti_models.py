@@ -15,7 +15,7 @@ from sklearn.svm import LinearSVC
 
 from senti.cache import CachedFitTransform
 from senti.features import *
-from senti.gensim_ext import *
+from senti.gensim_utils import *
 from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng

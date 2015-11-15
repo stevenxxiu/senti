@@ -4,7 +4,7 @@ import os
 
 import joblib
 
-from senti.gensim_ext import *
+from senti.gensim_utils import *
 
 
 def main():
