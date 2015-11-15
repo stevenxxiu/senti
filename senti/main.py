@@ -44,9 +44,9 @@ def main():
         )
         # pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
-        pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
+        # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        # pipeline_name, pipeline = senti_models.fit_cnn()
+        pipeline_name, pipeline = senti_models.fit_cnn()
 
         # test_data = [('dev', dev_docs, dev_labels)]
         test_data = [('dev', dev_docs, dev_labels), ('test', test_docs, test_labels)]

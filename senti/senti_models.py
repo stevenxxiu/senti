@@ -230,6 +230,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         embedding_type = 'google'
+        embeddings_ = None
         if embedding_type == 'google':
             embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
@@ -242,7 +243,7 @@ class SentiModels:
             ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
             embeddings_ = embeddings_.named_steps['word2vec'].estimator
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
-        else:
+        elif embedding_type == 'none':
             embeddings_ = SimpleNamespace(X=np.empty((0, 300)), vocab={})
         features = Pipeline([
             ('tokenize', tokenize_sense),
@@ -254,17 +255,13 @@ class SentiModels:
         features.fit(distant_docs)
         features.fit(self.dev_docs)
         features.fit(self.train_docs)
-        classifier = ConvNet(
+        classifier = CNN(
             batch_size=50, embeddings=features.named_steps['index'], img_h=56, filter_hs=[3, 4, 5],
             hidden_units=[100, 3], dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,),
             static_mode=1, lr_decay=0.95, norm_lim=3
         )
         fit_args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(
-            features.transform(distant_docs), distant_labels(), shuffle_batch=False, n_epochs=1, **fit_args
-        )
-        classifier.fit(
-            features.transform(self.train_docs), self.train_labels(), shuffle_batch=True, n_epochs=16, **fit_args
-        )
+        classifier.fit(features.transform(distant_docs), distant_labels(), n_epochs=1, **fit_args)
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), n_epochs=10, **fit_args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn(embedding={})'.format(embedding_type), estimator

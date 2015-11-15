@@ -139,4 +139,6 @@ class Clip(BaseEstimator):
         return self
 
     def transform(self, docs):
-        return vstack(np.hstack([doc[:self.max_len], np.zeros(max(0, self.max_len - len(doc)))]) for doc in docs)
+        return vstack(np.hstack([
+                doc[:self.max_len], np.zeros(max(0, self.max_len - len(doc)), dtype=doc.dtype)
+        ]) for doc in docs)
