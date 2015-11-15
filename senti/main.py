@@ -55,19 +55,19 @@ def main():
         for name, docs, labels in test_data:
             os.makedirs('results/{}'.format(name), exist_ok=True)
             try:
-                all_probs = pipeline.predict_proba(docs)
+                probs = pipeline.predict_proba(docs)
             except AttributeError:
-                all_probs = LabelBinarizer().fit(pipeline.classes_).transform(pipeline.predict(docs))
+                probs = LabelBinarizer().fit(pipeline.classes_).transform(pipeline.predict(docs))
             with open('{}.json'.format(name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
-                for line, probs in zip(sr, all_probs):
+                for line, prob in zip(sr, probs):
                     results_sr.write(json.dumps({
-                        'id': json.loads(line)['id'], 'label': int(pipeline.classes_[np.argmax(probs)]),
-                        'probs': [(c.item(), prob.item()) for c, prob in zip(pipeline.classes_, probs)]
+                        'id': json.loads(line)['id'], 'label': int(pipeline.classes_[np.argmax(prob)]),
+                        'probs': [(c.item(), prob.item()) for c, prob in zip(pipeline.classes_, prob)]
                     }) + '\n')
             print('{} data: '.format(name))
             labels = np.fromiter(labels, dtype='int32')
-            write_score('results/{}/{}'.format(name, pipeline_name), labels, all_probs, pipeline.classes_, (0, 2))
+            write_score('results/{}/{}'.format(name, pipeline_name), labels, probs, pipeline.classes_, (0, 2))
 
 if __name__ == '__main__':
     main()

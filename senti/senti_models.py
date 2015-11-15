@@ -65,14 +65,14 @@ class SentiModels:
         classifiers = [ExternalModel({
             self.dev_docs: 'results/dev/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
         }) for name in names]
-        classifier_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
-        classifier_probs_first, classifier_probs_rest = classifier_probs[0], classifier_probs[1:]
+        all_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
+        all_probs_first, all_probs_rest = all_probs[0], all_probs[1:]
         label_encoder = LabelEncoder()
         dev_label_indexes = label_encoder.fit_transform(self.dev_labels())
         # assume w_0=1 as w is invariant to scaling
         w = basinhopping(
             lambda w_: -(dev_label_indexes == np.argmax((
-                classifier_probs_first + classifier_probs_rest*w_.reshape((len(w_), 1, 1))
+                all_probs_first + all_probs_rest*w_.reshape((len(w_), 1, 1))
             ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)]*(len(classifiers) - 1))
         ).x

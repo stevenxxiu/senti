@@ -69,7 +69,7 @@ class ConvNet(BaseEstimator):
         net = lasagne.layers.DenseLayer(net, hidden_units[-1], nonlinearity=softmax)
         constraints[net.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
         self.network = net
-        self.prediction_probs = lasagne.layers.get_output(self.network, deterministic=True)
+        self.probs = lasagne.layers.get_output(self.network, deterministic=True)
         self.loss = -T.mean(T.log(lasagne.layers.get_output(net))[T.arange(self.y.shape[0]), self.y])
         params = lasagne.layers.get_all_params(net, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
@@ -92,7 +92,7 @@ class ConvNet(BaseEstimator):
 
         # theano functions
         index = T.lscalar()
-        predictions = T.argmax(self.prediction_probs, axis=1)
+        predictions = T.argmax(self.probs, axis=1)
         acc = T.mean(T.eq(predictions, self.y))
         train_batch = theano.function([index], [self.loss, acc], updates=self.updates, givens={
             self.X: train_X[index*self.batch_size:(index + 1)*self.batch_size],
@@ -132,7 +132,7 @@ class ConvNet(BaseEstimator):
         X, _, n_batches = pad_docs(X, np.empty(0), self.batch_size)
         X = theano.shared(np.int32(X), borrow=True)
         index = T.lscalar()
-        predict_batch = theano.function([index], self.prediction_probs, givens={
+        predict_batch = theano.function([index], self.probs, givens={
             self.X: X[index*self.batch_size:(index + 1)*self.batch_size]
         })
         return np.vstack(predict_batch(i) for i in range(n_batches))[:n_docs]
