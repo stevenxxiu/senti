@@ -17,39 +17,39 @@ class CNN(NNBase):
     ):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
-        net = lasagne.layers.InputLayer((self.batch_size, img_h), self.inputs[0])
-        embedding_nets = []
+        l = lasagne.layers.InputLayer((self.batch_size, img_h), self.inputs[0])
+        l_embeds = []
         if static_mode in (0, 2):
-            cur_net = lasagne.layers.EmbeddingLayer(net, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
-            self.constraints[cur_net.W] = lambda u, v: u
-            cur_net = lasagne.layers.DimshuffleLayer(cur_net, (0, 2, 1))
-            embedding_nets.append(cur_net)
+            l_cur = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            self.constraints[l_cur.W] = lambda u, v: u
+            l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
+            l_embeds.append(l_cur)
         if static_mode in (1, 2):
-            cur_net = lasagne.layers.EmbeddingLayer(net, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
-            cur_net = lasagne.layers.DimshuffleLayer(cur_net, (0, 2, 1))
-            embedding_nets.append(cur_net)
-        conv_nets = []
+            l_cur = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
+            l_embeds.append(l_cur)
+        l_convs = []
         for filter_h in filter_hs:
-            cur_nets = [lasagne.layers.Conv1DLayer(
-                cur_net, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear
-            ) for cur_net in embedding_nets]
-            cur_net = lasagne.layers.ElemwiseSumLayer(cur_nets)
-            cur_net = lasagne.layers.MaxPool1DLayer(cur_net, img_h + filter_h - 1, ignore_border=True)
-            cur_net = lasagne.layers.FlattenLayer(cur_net)
-            conv_nets.append(cur_net)
-        net = lasagne.layers.ConcatLayer(conv_nets)
-        net = lasagne.layers.DropoutLayer(net, dropout_rates[0])
+            l_curs = [lasagne.layers.Conv1DLayer(
+                l_embed, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear
+            ) for l_embed in l_embeds]
+            l_cur = lasagne.layers.ElemwiseSumLayer(l_curs)
+            l_cur = lasagne.layers.MaxPool1DLayer(l_cur, img_h + filter_h - 1, ignore_border=True)
+            l_cur = lasagne.layers.FlattenLayer(l_cur)
+            l_convs.append(l_cur)
+        l = lasagne.layers.ConcatLayer(l_convs)
+        l = lasagne.layers.DropoutLayer(l, dropout_rates[0])
         for n, activation, dropout in zip(hidden_units[1:-1], activations, dropout_rates[1:]):
-            net = lasagne.layers.DenseLayer(net, n, nonlinearity=activation)
-            self.constraints[net.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
-            net = lasagne.layers.DropoutLayer(net, dropout)
-        net = lasagne.layers.DenseLayer(net, hidden_units[-1], nonlinearity=softmax)
-        self.constraints[net.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
-        self.probs = lasagne.layers.get_output(net, deterministic=True)
-        self.loss = -T.mean(T.log(lasagne.layers.get_output(net))[np.arange(self.batch_size), self.target])
-        params = lasagne.layers.get_all_params(net, trainable=True)
+            l = lasagne.layers.DenseLayer(l, n, nonlinearity=activation)
+            self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+            l = lasagne.layers.DropoutLayer(l, dropout)
+        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=softmax)
+        self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+        self.probs = lasagne.layers.get_output(l, deterministic=True)
+        self.loss = -T.mean(T.log(lasagne.layers.get_output(l))[np.arange(self.batch_size), self.target])
+        params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
-        self.network = net
+        self.network = l
 
     def gen_batches(self, X, y):
         n = X.shape[0]
