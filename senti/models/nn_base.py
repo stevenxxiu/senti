@@ -36,7 +36,7 @@ class NNBase(BaseEstimator):
         ))
         return dev_f1
 
-    def fit(self, docs, y, n_epochs, dev_X, dev_y, average_classes):
+    def fit(self, docs, y, epochs, dev_X, dev_y, average_classes):
         print('training...')
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
@@ -50,7 +50,7 @@ class NNBase(BaseEstimator):
         best_perf = None
         params = lasagne.layers.get_all_params(self.network)
         best_params = None
-        for epoch in range(n_epochs):
+        for epoch in range(epochs):
             train_res = [train(*data) for data in self.gen_batches(docs, y)]
             train_loss, train_acc = np.mean(train_res, axis=0)
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]

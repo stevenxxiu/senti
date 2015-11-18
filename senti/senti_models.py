@@ -267,8 +267,8 @@ class SentiModels:
         )
         features = Pipeline([('index', features), ('clip', Clip(56))])
         fit_args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(distant_docs), distant_labels(), n_epochs=1, **fit_args)
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), n_epochs=10, **fit_args)
+        classifier.fit(features.transform(distant_docs), distant_labels(), epochs=1, **fit_args)
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), epochs=10, **fit_args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn(embedding={})'.format(embedding_type), estimator
 
