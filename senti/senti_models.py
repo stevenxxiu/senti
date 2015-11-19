@@ -277,6 +277,6 @@ class SentiModels:
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs])
         classifier = RNN(batch_size=50, embeddings=embeddings_, hidden_units=[300, 3], lr_decay=0.95)
         fit_args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), n_epochs=7, **fit_args)
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), epochs=10, **fit_args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'rnn(embedding={})'.format(embedding_type), estimator

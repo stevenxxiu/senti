@@ -2,7 +2,7 @@
 import lasagne
 import numpy as np
 import theano.tensor as T
-from lasagne.nonlinearities import softmax
+from lasagne.nonlinearities import softmax, rectify
 
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
@@ -17,7 +17,7 @@ class RNN(NNBase):
         l = lasagne.layers.InputLayer((self.batch_size, None), self.inputs[0])
         l_mask = lasagne.layers.InputLayer((self.batch_size, None), self.inputs[1])
         l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
-        l = lasagne.layers.RecurrentLayer(l, hidden_units[0], mask_input=l_mask)
+        l = lasagne.layers.LSTMLayer(l, hidden_units[0], nonlinearity=rectify, mask_input=l_mask)
         l = lasagne.layers.SliceLayer(l, -1, 1)
         l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=softmax)
         self.probs = lasagne.layers.get_output(l, deterministic=True)
