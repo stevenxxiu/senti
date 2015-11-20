@@ -1,4 +1,6 @@
 
+import itertools
+
 import lasagne
 import numpy as np
 import theano
@@ -28,7 +30,8 @@ class NNBase(BaseEstimator):
         raise NotImplementedError
 
     @staticmethod
-    def perf(epoch, train_loss, train_acc, dev_res, dev_y, average_classes):
+    def perf(epoch, train_res, dev_res, dev_y, average_classes):
+        train_loss, train_acc = np.mean(train_res, axis=0)
         dev_acc = accuracy_score(dev_res, dev_y)
         dev_f1 = np.mean(precision_recall_fscore_support(dev_res, dev_y)[2][average_classes])
         print('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
@@ -36,7 +39,7 @@ class NNBase(BaseEstimator):
         ))
         return dev_f1
 
-    def fit(self, docs, y, epochs, dev_X, dev_y, average_classes):
+    def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_len=None, max_epochs=None):
         print('training...')
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
@@ -47,14 +50,29 @@ class NNBase(BaseEstimator):
         acc = T.mean(T.eq(predictions, self.target))
         train = theano.function(self.inputs + [self.target], [self.loss, acc], updates=self.updates)
         test = theano.function(self.inputs, predictions)
-        best_perf = None
         params = lasagne.layers.get_all_params(self.network)
-        best_params = None
-        for epoch in range(epochs):
-            train_res = [train(*data) for data in self.gen_batches(docs, y)]
-            train_loss, train_acc = np.mean(train_res, axis=0)
+        best_perf, best_params = None, None
+        train_pass = 0
+        batch_iter = iter(())
+        for i in itertools.count(0):
+            if max_epochs is not None and i >= max_epochs:
+                break
+            train_res = []
+            for j in itertools.count(0):
+                try:
+                    if j >= epoch_len:
+                        break
+                    batch = next(batch_iter)
+                except StopIteration:
+                    if epoch_len is None:
+                        break
+                    print('training set pass {}'.format(train_pass))
+                    batch_iter = self.gen_batches(docs, y)
+                    batch = next(batch_iter)
+                    train_pass += 1
+                train_res.append(train(*batch))
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
-            perf = self.perf(epoch, train_loss, train_acc, dev_res, dev_y, average_classes)
+            perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
             if best_perf is None or perf >= best_perf:
                 best_perf = perf
                 best_params = {param: param.get_value() for param in params}
