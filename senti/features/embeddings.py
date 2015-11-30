@@ -13,7 +13,7 @@ class EmbeddingConstructor(BaseEstimator):
     def __init__(self, embeddings, rand, include_zero=True, min_df=1):
         self.embeddings = embeddings
         self.rand = rand
-        self.X = np.zeros((int(include_zero), embeddings.X.shape[1]))
+        self.X = np.zeros((int(include_zero), embeddings.X.shape[1]), dtype='float32')
         self.vocab = {}
         self.include_zero = include_zero
         self.min_df = min_df
@@ -30,7 +30,7 @@ class EmbeddingConstructor(BaseEstimator):
                 if self.embeddings and word in self.embeddings.vocab:
                     vecs.append(self.embeddings.X[self.embeddings.vocab[word]])
                 else:
-                    vecs.append(self.rand(self.X.shape[1]))
+                    vecs.append(self.rand(self.X.shape[1]).astype('float32'))
         self.X = np.vstack([self.X] + vecs)
         return self
 

@@ -33,10 +33,10 @@ class RNN(NNBase):
             indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
         else:
             indexes = np.hstack([get_rng().permutation(n), get_rng().choice(n, -n % self.batch_size)])
-        for i in range(0, len(indexes), self.batch_size):
+        for i in range(0, indexes.size, self.batch_size):
             cur_docs = [docs[indexes[j]] for j in range(i, i + self.batch_size)]
             shape = (self.batch_size, max(map(len, cur_docs)))
-            X_batch, mask_batch = np.zeros(shape, dtype='int32'), np.zeros(shape, dtype='float32')
+            X_batch, mask_batch = np.zeros(shape, dtype='int32'), np.zeros(shape, dtype='bool')
             for j, doc in enumerate(cur_docs):
                 X_batch[j, :len(doc)] = doc
                 mask_batch[j, :len(doc)] = 1
