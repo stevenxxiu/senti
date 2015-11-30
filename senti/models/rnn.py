@@ -2,10 +2,11 @@
 import lasagne
 import numpy as np
 import theano.tensor as T
-from lasagne.nonlinearities import rectify, softmax
+from lasagne.nonlinearities import rectify
 
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
+from senti.theano_utils import log_softmax
 
 __all__ = ['RNN']
 
@@ -19,9 +20,9 @@ class RNN(NNBase):
         l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
         l = lasagne.layers.LSTMLayer(l, hidden_units[0], nonlinearity=rectify, mask_input=l_mask)
         l = lasagne.layers.SliceLayer(l, -1, 1)
-        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=softmax)
-        self.probs = lasagne.layers.get_output(l, deterministic=True)
-        self.loss = -T.mean(T.log(lasagne.layers.get_output(l))[np.arange(self.batch_size), self.target])
+        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=log_softmax)
+        self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
+        self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
         self.network = l

@@ -2,10 +2,10 @@
 import lasagne
 import numpy as np
 import theano.tensor as T
-from lasagne.nonlinearities import softmax
 
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
+from senti.theano_utils import log_softmax
 
 __all__ = ['CNN']
 
@@ -43,10 +43,10 @@ class CNN(NNBase):
             l = lasagne.layers.DenseLayer(l, n, nonlinearity=activation)
             self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
             l = lasagne.layers.DropoutLayer(l, dropout)
-        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=softmax)
+        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=log_softmax)
         self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
-        self.probs = lasagne.layers.get_output(l, deterministic=True)
-        self.loss = -T.mean(T.log(lasagne.layers.get_output(l))[np.arange(self.batch_size), self.target])
+        self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
+        self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
         self.network = l
@@ -57,6 +57,6 @@ class CNN(NNBase):
             indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
         else:
             indexes = np.hstack([get_rng().permutation(n), get_rng().choice(n, -n % self.batch_size)])
-        for i in range(0, len(indexes), self.batch_size):
+        for i in range(0, indexes.size, self.batch_size):
             X_batch = X[indexes[i:i + self.batch_size]]
             yield (X_batch,) if y is None else (X_batch, y[indexes[i:i + self.batch_size]])
