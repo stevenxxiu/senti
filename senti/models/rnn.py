@@ -4,9 +4,9 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
+from senti.lasagne_utils import log_softmax
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
-from senti.theano_utils import log_softmax
 
 __all__ = ['RNN']
 
