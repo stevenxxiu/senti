@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import joblib
 import numpy as np
 from joblib import Memory
-from lasagne.nonlinearities import identity, rectify
 from scipy.optimize import basinhopping
 from sklearn.ensemble import VotingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -262,7 +261,7 @@ class SentiModels:
         features, embeddings_ = self.fit_embedding(embedding_type, construct_docs)
         classifier = CNN(
             batch_size=64, embeddings=embeddings_, img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-            dropout_rates=[0.5], conv_non_linear=rectify, activations=(identity,), static_mode=1, norm_lim=3
+            dropout_rates=[0.5], static_mode=1, norm_lim=3
         )
         features = Pipeline([('index', features), ('clip', Clip(56))])
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])

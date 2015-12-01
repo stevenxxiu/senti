@@ -2,6 +2,7 @@
 import lasagne
 import numpy as np
 import theano.tensor as T
+from lasagne.nonlinearities import *
 
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
@@ -11,10 +12,7 @@ __all__ = ['CNN']
 
 
 class CNN(NNBase):
-    def create_model(
-        self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, static_mode,
-        norm_lim
-    ):
+    def create_model(self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, static_mode, norm_lim):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, img_h), self.inputs[0])
@@ -31,7 +29,7 @@ class CNN(NNBase):
         l_convs = []
         for filter_h in filter_hs:
             l_curs = [lasagne.layers.Conv1DLayer(
-                l_embed, hidden_units[0], filter_h, pad='full', nonlinearity=conv_non_linear
+                l_embed, hidden_units[0], filter_h, pad='full', nonlinearity=rectify
             ) for l_embed in l_embeds]
             l_cur = lasagne.layers.ElemwiseSumLayer(l_curs)
             l_cur = lasagne.layers.MaxPool1DLayer(l_cur, img_h + filter_h - 1, ignore_border=True)
@@ -39,8 +37,8 @@ class CNN(NNBase):
             l_convs.append(l_cur)
         l = lasagne.layers.ConcatLayer(l_convs)
         l = lasagne.layers.DropoutLayer(l, dropout_rates[0])
-        for n, activation, dropout in zip(hidden_units[1:-1], activations, dropout_rates[1:]):
-            l = lasagne.layers.DenseLayer(l, n, nonlinearity=activation)
+        for n, dropout in zip(hidden_units[1:-1], dropout_rates[1:]):
+            l = lasagne.layers.DenseLayer(l, n, nonlinearity=identity)
             self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
             l = lasagne.layers.DropoutLayer(l, dropout)
         l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=log_softmax)

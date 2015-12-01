@@ -2,7 +2,7 @@
 import lasagne
 import numpy as np
 import theano.tensor as T
-from lasagne.nonlinearities import rectify
+from lasagne.nonlinearities import *
 
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
