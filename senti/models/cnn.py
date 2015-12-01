@@ -13,7 +13,7 @@ __all__ = ['CNN']
 class CNN(NNBase):
     def create_model(
         self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, conv_non_linear, activations, static_mode,
-        lr_decay, norm_lim
+        norm_lim
     ):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
@@ -48,7 +48,7 @@ class CNN(NNBase):
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
+        self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
     def gen_batches(self, X, y):

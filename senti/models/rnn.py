@@ -12,7 +12,7 @@ __all__ = ['RNN']
 
 
 class RNN(NNBase):
-    def create_model(self, embeddings, hidden_units, lr_decay):
+    def create_model(self, embeddings, hidden_units):
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, None), self.inputs[0])
@@ -24,7 +24,7 @@ class RNN(NNBase):
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params, rho=lr_decay)
+        self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
     def gen_batches(self, docs, y):
