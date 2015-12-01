@@ -24,7 +24,7 @@ class RNN(NNBase):
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params)
+        self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
         self.network = l
 
     def gen_batches(self, docs, y):
