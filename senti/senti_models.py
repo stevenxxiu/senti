@@ -270,6 +270,18 @@ class SentiModels:
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn(embedding={})'.format(embedding_type), estimator
 
+    def fit_cnn_char(self):
+        # XXX normalize docs
+        alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:'"/\\|_@#$%^&*~`+-=<>()[]{}"
+        features = Embeddings(SimpleNamespace(
+            vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
+        ), include_zero=True)
+        classifier = CNNChar(batch_size=128, embeddings=features.embeddings, input_size=140)
+        args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
+        estimator = Pipeline([('features', features), ('classifier', classifier)])
+        return 'cnn_char', estimator
+
     def fit_rnn(self):
         embedding_type = 'google'
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs])
