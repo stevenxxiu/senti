@@ -245,7 +245,7 @@ class SentiModels:
         estimator = Pipeline([
             ('tokenize', tokenize_sense),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
-            ('index', EmbeddingConstructor(
+            ('index', Embeddings(
                 embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape), include_zero=True
             ))
         ])
