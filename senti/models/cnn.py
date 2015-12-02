@@ -12,10 +12,10 @@ __all__ = ['CNN']
 
 
 class CNN(NNBase):
-    def create_model(self, embeddings, img_h, filter_hs, hidden_units, dropout_rates, static_mode, norm_lim):
+    def create_model(self, embeddings, input_size, conv_param, dense_params, output_size, static_mode, norm_lim):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
-        l = lasagne.layers.InputLayer((self.batch_size, img_h), self.inputs[0])
+        l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
         l_embeds = []
         if static_mode in (0, 2):
             l_cur = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
@@ -27,21 +27,21 @@ class CNN(NNBase):
             l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
             l_embeds.append(l_cur)
         l_convs = []
-        for filter_h in filter_hs:
+        for filter_size in conv_param[1]:
             l_curs = [lasagne.layers.Conv1DLayer(
-                l_embed, hidden_units[0], filter_h, pad='full', nonlinearity=rectify
+                l_embed, conv_param[0], filter_size, pad='full', nonlinearity=rectify
             ) for l_embed in l_embeds]
             l_cur = lasagne.layers.ElemwiseSumLayer(l_curs)
-            l_cur = lasagne.layers.MaxPool1DLayer(l_cur, img_h + filter_h - 1, ignore_border=True)
+            l_cur = lasagne.layers.MaxPool1DLayer(l_cur, input_size + filter_size - 1, ignore_border=True)
             l_cur = lasagne.layers.FlattenLayer(l_cur)
             l_convs.append(l_cur)
         l = lasagne.layers.ConcatLayer(l_convs)
-        l = lasagne.layers.DropoutLayer(l, dropout_rates[0])
-        for n, dropout in zip(hidden_units[1:-1], dropout_rates[1:]):
-            l = lasagne.layers.DenseLayer(l, n, nonlinearity=identity)
+        l = lasagne.layers.DropoutLayer(l, 0.5)
+        for dense_param in dense_params:
+            l = lasagne.layers.DenseLayer(l, dense_param, nonlinearity=identity)
             self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
-            l = lasagne.layers.DropoutLayer(l, dropout)
-        l = lasagne.layers.DenseLayer(l, hidden_units[-1], nonlinearity=log_softmax)
+            l = lasagne.layers.DropoutLayer(l, 0.5)
+        l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
         self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])

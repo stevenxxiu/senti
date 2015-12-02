@@ -260,8 +260,8 @@ class SentiModels:
         construct_docs.append(distant_docs)
         features, embeddings_ = self.fit_embedding(embedding_type, construct_docs)
         classifier = CNN(
-            batch_size=64, embeddings=embeddings_, img_h=56, filter_hs=[3, 4, 5], hidden_units=[100, 3],
-            dropout_rates=[0.5], static_mode=1, norm_lim=3
+            batch_size=64, embeddings=embeddings_, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
+            output_size=3, static_mode=1, norm_lim=3
         )
         features = Pipeline([('index', features), ('clip', Clip(56))])
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
@@ -273,7 +273,7 @@ class SentiModels:
     def fit_rnn(self):
         embedding_type = 'google'
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs])
-        classifier = RNN(batch_size=64, embeddings=embeddings_, hidden_units=[300, 3])
+        classifier = RNN(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
