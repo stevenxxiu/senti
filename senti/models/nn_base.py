@@ -12,6 +12,32 @@ from sklearn.utils.multiclass import unique_labels
 __all__ = ['NNBase']
 
 
+class EpochIterator:
+    def __init__(self, gen_batches, args, epoch_len):
+        self.gen_batches = gen_batches
+        self.args = args
+        self.epoch_len = epoch_len
+        self.batch_iter = iter(())
+        self.train_pass = 0
+
+    def _iter_batches(self):
+        for i in itertools.count(0):
+            try:
+                if self.epoch_len is not None and i >= self.epoch_len:
+                    return
+                yield next(self.batch_iter)
+            except StopIteration:
+                self.batch_iter = self.gen_batches(*self.args)
+                if self.epoch_len is None and self.train_pass > 0:
+                    return
+                print('training set pass {}'.format(self.train_pass))
+                self.train_pass += 1
+
+    def __iter__(self):
+        while True:
+            yield self._iter_batches()
+
+
 class NNBase(BaseEstimator):
     def __init__(self, batch_size, *args, **kwargs):
         self.batch_size = batch_size
@@ -40,7 +66,6 @@ class NNBase(BaseEstimator):
         return dev_f1
 
     def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_len=None, max_epochs=None):
-        print('training...')
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
             for param, constraint in self.constraints.items():
@@ -50,27 +75,11 @@ class NNBase(BaseEstimator):
         acc = T.mean(T.eq(predictions, self.target))
         train = theano.function(self.inputs + [self.target], [self.loss, acc], updates=self.updates)
         test = theano.function(self.inputs, predictions)
+        print('training...')
         params = lasagne.layers.get_all_params(self.network)
         best_perf, best_params = None, None
-        train_pass = 0
-        batch_iter = iter(())
-        for i in itertools.count(0):
-            if max_epochs is not None and i >= max_epochs:
-                break
-            train_res = []
-            for j in itertools.count(0):
-                try:
-                    if j >= epoch_len:
-                        break
-                    batch = next(batch_iter)
-                except StopIteration:
-                    if epoch_len is None:
-                        break
-                    print('training set pass {}'.format(train_pass))
-                    batch_iter = self.gen_batches(docs, y)
-                    batch = next(batch_iter)
-                    train_pass += 1
-                train_res.append(train(*batch))
+        for i, batches in zip(range(max_epochs), EpochIterator(self.gen_batches, (docs, y), epoch_len)):
+            train_res = [train(*batch) for batch in batches]
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
             if best_perf is None or perf >= best_perf:
