@@ -50,6 +50,7 @@ class CNN(NNBase):
         self.network = l
 
     def gen_batches(self, X, y):
+        X = np.vstack(np.hstack([x, np.zeros(self.kwargs['input_size'] - x.size, dtype='int32')]) for x in X)
         n = X.shape[0]
         if y is None:
             indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
