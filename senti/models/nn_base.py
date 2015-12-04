@@ -27,10 +27,10 @@ class EpochIterator:
                     return
                 yield next(self.batch_iter)
             except StopIteration:
-                self.batch_iter = self.gen_batches(*self.args)
-                if self.epoch_len is None and self.train_pass > 0:
+                if self.epoch_len is None and i > 0:
                     return
                 print('training set pass {}'.format(self.train_pass))
+                self.batch_iter = self.gen_batches(*self.args)
                 self.train_pass += 1
 
     def __iter__(self):
