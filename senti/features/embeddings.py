@@ -17,10 +17,11 @@ class Embeddings(BaseEstimator):
             self.X = embeddings.X
             self.vocab = embeddings.vocab
         else:
-            self.X = np.zeros(0, embeddings.X.shape[1], dtype='float32')
+            self.X = np.empty((0, embeddings.X.shape[1]), dtype='float32')
             self.vocab = {}
         if include_zero:
-            self.X = np.vstack([np.zeros(self.X.shape[1]), self.X])
+            self.X = np.vstack([np.zeros(self.X.shape[1], dtype='float32'), self.X])
+            self.vocab = dict((word, i + 1) for word, i in self.vocab.items())
         self.include_zero = include_zero
         self.min_df = min_df
 
