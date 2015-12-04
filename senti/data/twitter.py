@@ -71,7 +71,7 @@ class UnsupData:
                 elif counts[0] == 0 and counts[1] == 0 and counts[2] > 0:
                     label = 2
                 if label is not None:
-                    out_srs[label].write(cls.emoticon_re.sub(' ', line))
+                    out_srs[label].write(cls.emoticon_re.sub(' ', line).strip() + '\n')
 
 
 class SemEvalData:
@@ -118,8 +118,8 @@ class SemEvalData:
 def main():
     os.chdir('data/twitter')
     # UnsupData.unescape_unsup()
-    UnsupData.write_all_emote()
-    # UnsupData.write_split_emote()
+    # UnsupData.write_all_emote()
+    UnsupData.write_split_emote()
     # for unitn_entry in [(
     #     'dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
     #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
