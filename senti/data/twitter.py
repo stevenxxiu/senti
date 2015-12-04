@@ -4,7 +4,8 @@ import html
 import json
 import os
 import re
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
+from multiprocessing import Pool
 
 from senti.features import Emoticons
 
@@ -40,13 +41,18 @@ class UnsupData:
             for line in in_sr:
                 out_sr.write(html.unescape(html.unescape(line)))
 
+    @staticmethod
+    def _emote_filter(line):
+        return bool(UnsupData.emoticon_re.search(line)), line
+
     @classmethod
     def write_all_emote(cls):
         # all emoticons as cache stage, as emoticons extraction can be very slow
         with open('unsup.txt', encoding='utf-8') as in_sr, open('emote.txt', 'w') as out_sr:
-            for i, line in enumerate(in_sr):
-                if cls.emoticon_re.search(line):
-                    out_sr.write(line)
+            with closing(Pool(64)) as pool:
+                for res, line in pool.imap(cls._emote_filter, in_sr, 100000):
+                    if res:
+                        out_sr.write(line)
 
     @classmethod
     def write_split_emote(cls):
@@ -112,20 +118,20 @@ class SemEvalData:
 def main():
     os.chdir('data/twitter')
     # UnsupData.unescape_unsup()
-    # UnsupData.write_all_emote()
+    UnsupData.write_all_emote()
     # UnsupData.write_split_emote()
-    for unitn_entry in [(
-        'dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
-        'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
-    ), (
-        'train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
-        'input/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
-    )]:
-        SemEvalData.write_unitn(*unitn_entry)
-    SemEvalData.write_test(
-        'test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
-        'input/test/SemEval2015-task10-test-B-gold.txt'
-    )
+    # for unitn_entry in [(
+    #     'dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
+    #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
+    # ), (
+    #     'train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+    #     'input/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
+    # )]:
+    #     SemEvalData.write_unitn(*unitn_entry)
+    # SemEvalData.write_test(
+    #     'test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
+    #     'input/test/SemEval2015-task10-test-B-gold.txt'
+    # )
 
 if __name__ == '__main__':
     main()
