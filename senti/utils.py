@@ -130,7 +130,7 @@ def reiterable(method):
 
 
 class Compose:
-    def __init__(self, funcs):
+    def __init__(self, *funcs):
         self.funcs = funcs
 
     def __eq__(self, other):

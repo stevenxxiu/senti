@@ -85,7 +85,7 @@ class SentiModels:
         return 'vote({})'.format(','.join(names)), estimator
 
     def fit_svm(self):
-        tokenize_raw = CachedFitTransform(Map(compose([tokenize, normalize_special, unescape])), self.memory)
+        tokenize_raw = CachedFitTransform(Map(compose(tokenize, normalize_special, unescape)), self.memory)
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', tokenize_raw), ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
@@ -155,7 +155,7 @@ class SentiModels:
 
     def fit_logreg(self):
         tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+            ('tokenize', Map(compose(tokenize, normalize_special, unescape))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
@@ -211,7 +211,7 @@ class SentiModels:
 
     def fit_word2vec_bayes(self):
         tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose([tokenize, normalize_special, unescape]))),
+            ('tokenize', Map(compose(tokenize, normalize_special, unescape))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         estimator = Pipeline([
@@ -256,7 +256,7 @@ class SentiModels:
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
         construct_docs.append(distant_docs)
         tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose([tokenize, normalize_special]))),
+            ('tokenize', Map(compose(tokenize, normalize_special))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features, embeddings_ = self.fit_embedding(embedding_type, construct_docs, tokenize_sense)
@@ -274,7 +274,7 @@ class SentiModels:
     def fit_cnn_char(self):
         alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
         features = Pipeline([
-            ('tokenize', Map(compose([str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special]))),
+            ('tokenize', Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))),
             ('embeddings', Embeddings(SimpleNamespace(
                 vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
             ), include_zero=True))
@@ -288,7 +288,7 @@ class SentiModels:
     def fit_rnn(self):
         embedding_type = 'google'
         tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose([tokenize, normalize_special]))),
+            ('tokenize', Map(compose(tokenize, normalize_special))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
