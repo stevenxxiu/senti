@@ -48,9 +48,7 @@ class CachedFitTransform(PicklableProxy):
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):
-        # workaround since joblib doesn't support caching of iterators
-        res = self.__wrapped__.transform(X)
-        return list(res) if hasattr(res, '__iter__') and not hasattr(res, '__len__') else res
+        return self.__wrapped__.transform(X)
 
     def transform(self, X):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
