@@ -13,14 +13,14 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import Binarizer, LabelEncoder
 from sklearn.svm import LinearSVC
 
-from senti.cache import CachedFitTransform
 from senti.features import *
-from senti.gensim_utils import *
 from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
 from senti.utils import compose, temp_log_level
+from senti.utils.cache import CachedFitTransform
+from senti.utils.gensim_ import *
 
 __all__ = ['SentiModels']
 

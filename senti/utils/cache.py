@@ -1,7 +1,6 @@
-
 from contextlib import suppress
 
-from senti.utils import PicklableProxy
+from senti.utils.utils import PicklableProxy
 
 __all__ = ['CachedFitTransform']
 

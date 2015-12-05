@@ -7,7 +7,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-from senti.lasagne_utils import *
+from senti.utils.lasagne_ import *
 
 
 class TestKMaxPool1DLayer(unittest.TestCase):

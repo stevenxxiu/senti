@@ -8,7 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.metrics import accuracy_score, auc, precision_recall_fscore_support, roc_curve
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder
 
-from senti.utils import Tee
+from senti.utils.sr import Tee
 
 __all__ = ['write_score']
 

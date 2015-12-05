@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from joblib import Memory
 from sklearn.base import BaseEstimator
 
-from senti.cache import *
+from senti.utils.cache import *
 
 # Mock is not used in the usual way since it runs into pickling problems.
 _mock = MagicMock()

@@ -2,7 +2,8 @@
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from senti.utils import reiterable, sparse_sum, vstack
+from senti.utils import reiterable
+from senti.utils.numpy_ import sparse_sum, vstack
 
 __all__ = ['AsCorporas', 'MapCorporas', 'MergeSliceCorporas', 'Map', 'MapTokens', 'Index', 'Count', 'Proportion', 'Clip']
 

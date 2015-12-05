@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelBinarizer
 from senti.rand import set_rng
 from senti.score import *
 from senti.senti_models import *
-from senti.utils import *
+from senti.utils.sr import BalancedSlice, FieldExtractor
 
 
 def main():
