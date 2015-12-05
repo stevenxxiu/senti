@@ -4,7 +4,7 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.lasagne_utils import KMaxPool1DLayer, log_softmax
+from senti.lasagne_utils import log_softmax
 from senti.models.nn_base import NNBase
 from senti.rand import get_rng
 
@@ -22,7 +22,7 @@ class CNNChar(NNBase):
         for num_filters, filter_size, k in conv_params:
             l = lasagne.layers.Conv1DLayer(l, num_filters, filter_size, pad='full', nonlinearity=rectify)
             if k is not None:
-                l = KMaxPool1DLayer(l, k)
+                l = lasagne.layers.MaxPool1DLayer(l, k, ignore_border=False)
         dense_params = [2048, 2048]
         for num_units in dense_params:
             l = lasagne.layers.DenseLayer(l, num_units, nonlinearity=rectify)
@@ -31,7 +31,7 @@ class CNNChar(NNBase):
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.momentum(self.loss, params, 0.01)
+        self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
     def gen_batches(self, X, y):

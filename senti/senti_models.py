@@ -1,5 +1,6 @@
 
 import logging
+import re
 from types import SimpleNamespace
 
 import joblib
@@ -223,17 +224,13 @@ class SentiModels:
             estimator.fit(self.train_docs, self.train_labels())
         return 'word2vec_bayes', estimator
 
-    def fit_embedding(self, embedding_type, construct_docs):
-        tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose([tokenize, normalize_special]))),
-            ('normalize', MapTokens(normalize_elongations)),
-        ]), self.memory)
+    def fit_embedding(self, embedding_type, construct_docs, tokenize_):
         if embedding_type == 'google':
             embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         elif embedding_type == 'twitter':
             estimator = Pipeline([
-                ('tokenize', MapCorporas(tokenize_sense)),
+                ('tokenize', MapCorporas(tokenize_)),
                 ('word2vec', MergeSliceCorporas(CachedFitTransform(Word2Vec(
                     sg=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
                 ), self.memory)))
@@ -243,22 +240,26 @@ class SentiModels:
         else:
             embeddings_ = SimpleNamespace(X=np.empty((0, 100)), vocab={})
         estimator = Pipeline([
-            ('tokenize', tokenize_sense),
+            ('tokenize', tokenize_),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
-            ('index', Embeddings(
+            ('embeddings', Embeddings(
                 embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape), include_zero=True
             ))
         ])
         for docs in construct_docs:
             estimator.fit(docs)
-        return estimator, estimator.named_steps['index']
+        return estimator, estimator.named_steps['embeddings']
 
     def fit_cnn(self):
         embedding_type = 'google'
         construct_docs = [self.dev_docs, self.train_docs]
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
         construct_docs.append(distant_docs)
-        features, embeddings_ = self.fit_embedding(embedding_type, construct_docs)
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose([tokenize, normalize_special]))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        features, embeddings_ = self.fit_embedding(embedding_type, construct_docs, tokenize_sense)
         classifier = CNN(
             batch_size=64, embeddings=embeddings_, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
             output_size=3, static_mode=1, norm_lim=3
@@ -271,12 +272,14 @@ class SentiModels:
         return 'cnn(embedding={})'.format(embedding_type), estimator
 
     def fit_cnn_char(self):
-        # XXX normalize docs
-        alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:'"/\\|_@#$%^&*~`+-=<>()[]{}"
-        features = Embeddings(SimpleNamespace(
-            vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
-        ), include_zero=True)
-        classifier = CNNChar(batch_size=128, embeddings=features.embeddings, input_size=140)
+        alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
+        features = Pipeline([
+            ('tokenize', Map(compose([str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special]))),
+            ('embeddings', Embeddings(SimpleNamespace(
+                vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
+            ), include_zero=True))
+        ])
+        classifier = CNNChar(batch_size=128, embeddings=features.named_steps['embeddings'], input_size=140)
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
@@ -284,7 +287,11 @@ class SentiModels:
 
     def fit_rnn(self):
         embedding_type = 'google'
-        features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs])
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose([tokenize, normalize_special]))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
         classifier = RNN(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
