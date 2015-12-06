@@ -1,8 +1,12 @@
+
+import itertools
+import os
+import pickle
 from contextlib import suppress
 
 from senti.utils.utils import PicklableProxy
 
-__all__ = ['CachedFitTransform']
+__all__ = ['CachedFitTransform', 'CachedIterable']
 
 
 class CachedFitTransform(PicklableProxy):
@@ -48,7 +52,8 @@ class CachedFitTransform(PicklableProxy):
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):
-        return self.__wrapped__.transform(X)
+        res = self.__wrapped__.transform(X)
+        return CachedIterable(res) if hasattr(res, '__iter__') and not hasattr(res, '__len__') else res
 
     def transform(self, X):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
@@ -62,3 +67,42 @@ class CachedFitTransform(PicklableProxy):
     def fit_transform(self, X, *args, **kwargs):
         # ignore the default fit_transform as using the cache is usually more efficient
         return self.fit(X, *args, **kwargs).transform(X)
+
+
+class CachedIterable(PicklableProxy):
+    def __init__(self, wrapped, chunk_size=100):
+        super().__init__(wrapped)
+        self._self_chunk_size = chunk_size
+        self._self_name = None
+        self._self_path = 'cache/joblib_gen'
+        if not os.path.exists(self._self_path):
+            os.makedirs(self._self_path)
+
+    def __iter__(self):
+        if self._self_name is None:
+            yield from self.__wrapped__
+        else:
+            with open(os.path.join(self._self_path, self._self_name), 'rb') as sr:
+                while True:
+                    try:
+                        yield from pickle.load(sr)
+                    except EOFError:
+                        break
+
+    def __reduce__(self):
+        if self._self_name is None:
+            name = None
+            for i in itertools.count(1):
+                name = 'output.pkl_{:02}.gen'.format(i)
+                if not os.path.exists(os.path.join(self._self_path, name)):
+                    break
+            with open(os.path.join(self._self_path, name), 'wb') as sr:
+                res = []
+                for i, value in enumerate(self):
+                    if i > 0 and i % self._self_chunk_size == 0:
+                        pickle.dump(res, sr)
+                        res.clear()
+                    res.append(value)
+                pickle.dump(res, sr)
+            self._self_name = name
+        return super().__reduce__()

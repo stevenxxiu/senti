@@ -18,8 +18,7 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
-from senti.utils import compose, temp_log_level
-from senti.utils.cache import CachedFitTransform
+from senti.utils import CachedFitTransform, compose, temp_log_level
 from senti.utils.gensim_ import *
 
 __all__ = ['SentiModels']

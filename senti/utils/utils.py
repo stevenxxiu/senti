@@ -1,8 +1,5 @@
 
-import itertools
 import logging
-import os
-import pickle
 from contextlib import contextmanager
 
 from wrapt import ObjectProxy
@@ -36,53 +33,19 @@ class PicklableProxy(ObjectProxy):
 
 
 class Reiterable:
-    def __init__(self, func, *args, chunk_size=100):
+    def __init__(self, func, *args, **kwargs):
         self.func = func
         self.args = args
-        self._chunk_size = chunk_size
-        self._name = None
-        self._path = 'cache/joblib_gen'
-        if not os.path.exists(self._path):
-            os.makedirs(self._path)
+        self.kwargs = kwargs
+
+    def __iter__(self):
+        return self.func(*self.args, **self.kwargs)
 
     def __eq__(self, other):
         try:
-            return self.func == other.func and self.args == other.args
+            return self.func == other.func and self.args == other.args and self.kwargs == other.kwargs
         except AttributeError:
             return False
-
-    # noinspection PyTypeChecker
-    def __iter__(self):
-        if self._name:
-            with open(os.path.join(self._path, self._name), 'rb') as sr:
-                while True:
-                    try:
-                        yield from pickle.load(sr)
-                    except EOFError:
-                        break
-        else:
-            yield from self.func(*self.args)
-
-    def __reduce__(self):
-        if self._name is None:
-            name = None
-            for i in itertools.count(1):
-                name = 'output.pkl_{:02}.gen'.format(i)
-                if not os.path.exists(os.path.join(self._path, name)):
-                    break
-            with open(os.path.join(self._path, name), 'wb') as sr:
-                res = []
-                for i, value in enumerate(self):
-                    if i > 0 and i % self._chunk_size == 0:
-                        pickle.dump(res, sr)
-                        res.clear()
-                    res.append(value)
-                pickle.dump(res, sr)
-            self._name = name
-        return type(self), (self.func, *self.args, self._chunk_size), self._name
-
-    def __setstate__(self, state):
-        self._name = state
 
 
 def reiterable(method):
