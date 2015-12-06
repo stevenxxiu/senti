@@ -53,6 +53,8 @@ class BalancedSlice:
         self.n = n
 
     def __iter__(self):
+        for sr in self.srs:
+            sr.seek(0)
         m = None if self.n is None else round(self.n/len(self.srs))
         remaining = self.n
         for i, sr in enumerate(self.srs):
