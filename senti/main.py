@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelBinarizer
 from senti.rand import set_rng
 from senti.score import *
 from senti.senti_models import *
-from senti.utils import BalancedSlice, FieldExtractor
+from senti.utils import BalancedSlice, FieldExtractor, RepeatSr
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
         distant_srs = [stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
         distant_docs = BalancedSlice(distant_srs)
-        distant_labels = BalancedSlice((itertools.repeat(0), itertools.repeat(2)))
+        distant_labels = BalancedSlice((RepeatSr(0), RepeatSr(2)))
         unsup_sr = stack.enter_context(open('unsup.txt', encoding='utf-8'))
         unsup_docs = BalancedSlice([unsup_sr])
         dev_sr = stack.enter_context(open('dev.json'))
@@ -46,8 +46,8 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        # pipeline_name, pipeline = senti_models.fit_cnn()
-        pipeline_name, pipeline = senti_models.fit_cnn_char()
+        pipeline_name, pipeline = senti_models.fit_cnn()
+        # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_rnn()
 
         # test_data = [('dev', dev_docs, dev_labels)]

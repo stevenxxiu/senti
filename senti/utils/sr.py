@@ -2,8 +2,24 @@
 import itertools
 import json
 import sys
+from contextlib import contextmanager
 
-__all__ = ['Tee', 'FieldExtractor', 'BalancedSlice']
+__all__ = ['RepeatSr', 'Tee', 'FieldExtractor', 'BalancedSlice']
+
+
+@contextmanager
+def reset_sr(*srs):
+    # seek after yield to help with joblib caching of input arguments
+    for sr in srs:
+        sr.seek(0)
+    yield
+    for sr in srs:
+        sr.seek(0)
+
+
+class RepeatSr(itertools.repeat):
+    def seek(self, pos, mode=0):
+        pass
 
 
 class Tee:
@@ -27,9 +43,9 @@ class FieldExtractor:
         self.field = field
 
     def __iter__(self):
-        self.sr.seek(0)
-        for line in self.sr:
-            yield json.loads(line)[self.field]
+        with reset_sr(self.sr):
+            for line in self.sr:
+                yield json.loads(line)[self.field]
 
 
 class BalancedSlice:
@@ -38,15 +54,14 @@ class BalancedSlice:
         self.n = n
 
     def __iter__(self):
-        for sr in self.srs:
-            sr.seek(0)
-        m = None if self.n is None else round(self.n/len(self.srs))
-        m_last = None if self.n is None else self.n - m*(len(self.srs) - 1)
-        for i, sr in enumerate(self.srs):
-            if m is None:
-                yield from sr
-            else:
-                yield from itertools.islice(sr, m if i < len(self.srs) - 1 else m_last)
+        with reset_sr(*self.srs):
+            m = None if self.n is None else round(self.n/len(self.srs))
+            m_last = None if self.n is None else self.n - m*(len(self.srs) - 1)
+            for i, sr in enumerate(self.srs):
+                if m is None:
+                    yield from sr
+                else:
+                    yield from itertools.islice(sr, m if i < len(self.srs) - 1 else m_last)
 
     def __getitem__(self, item):
         if item.start is not None or item.stop < 0 or item.step is not None:
