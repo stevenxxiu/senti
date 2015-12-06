@@ -279,7 +279,7 @@ class SentiModels:
         ])
         classifier = CNNChar(batch_size=128, embeddings=features.named_steps['embeddings'], input_size=140)
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=2000, max_epochs=100, **args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn_char', estimator
 
@@ -292,6 +292,6 @@ class SentiModels:
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
         classifier = RNN(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
         args = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=20, max_epochs=100, **args)
+        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_len=1000, max_epochs=100, **args)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'rnn(embedding={})'.format(embedding_type), estimator

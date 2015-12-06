@@ -78,7 +78,8 @@ class NNBase(BaseEstimator):
         print('training...')
         params = lasagne.layers.get_all_params(self.network)
         best_perf, best_params = None, None
-        for i, batches in zip(range(max_epochs), EpochIterator(self.gen_batches, (docs, y), epoch_len)):
+        epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_len//self.batch_size if epoch_len else None)
+        for i, batches in zip(range(max_epochs), epoch_iter):
             train_res = [train(*batch) for batch in batches]
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
