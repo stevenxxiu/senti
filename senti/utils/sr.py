@@ -1,8 +1,9 @@
 
+import itertools
 import json
 import sys
 
-__all__ = ['Tee', 'PicklableSr', 'FieldExtractor', 'BalancedSlice']
+__all__ = ['Tee', 'FieldExtractor', 'BalancedSlice']
 
 
 class Tee:
@@ -20,25 +21,9 @@ class Tee:
         self.file.close()
 
 
-class PicklableSr:
-    def __init__(self, sr):
-        self.sr = sr
-        self.name = sr.name
-        self.encoding = sr.encoding
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['sr']
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.sr = open(self.name, encoding=self.encoding)
-
-
-class FieldExtractor(PicklableSr):
+class FieldExtractor:
     def __init__(self, sr, field):
-        super().__init__(sr)
+        self.sr = sr
         self.field = field
 
     def __iter__(self):
@@ -56,17 +41,12 @@ class BalancedSlice:
         for sr in self.srs:
             sr.seek(0)
         m = None if self.n is None else round(self.n/len(self.srs))
-        remaining = self.n
+        m_last = None if self.n is None else self.n - m*(len(self.srs) - 1)
         for i, sr in enumerate(self.srs):
             if m is None:
                 yield from sr
-                continue
-            if i == len(self.srs) - 1:
-                m = remaining
-            j = -1
-            for j, line in zip(range(m), sr):
-                yield line
-            remaining -= j + 1
+            else:
+                yield from itertools.islice(sr, m if i < len(self.srs) - 1 else m_last)
 
     def __getitem__(self, item):
         if item.start is not None or item.stop < 0 or item.step is not None:
