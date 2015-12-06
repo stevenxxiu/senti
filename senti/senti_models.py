@@ -239,15 +239,14 @@ class SentiModels:
         else:
             embeddings_ = SimpleNamespace(X=np.empty((0, 100)), vocab={})
         estimator = Pipeline([
-            ('tokenize', tokenize_),
+            ('tokenize', MapCorporas(tokenize_)),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
-            ('embeddings', Embeddings(
+            ('embeddings', MapCorporas(Embeddings(
                 embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape), include_zero=True
-            ))
+            )))
         ])
-        for docs in construct_docs:
-            estimator.fit(docs)
-        return estimator, estimator.named_steps['embeddings']
+        estimator.fit(construct_docs)
+        return AsCorporas(estimator), estimator.named_steps['embeddings'].estimator
 
     def fit_cnn(self):
         embedding_type = 'google'
