@@ -66,6 +66,7 @@ class NNBase(BaseEstimator):
         return dev_f1
 
     def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None):
+        print('compiling...')
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
             for param, constraint in self.constraints.items():
