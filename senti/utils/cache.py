@@ -4,6 +4,7 @@ import os
 import pickle
 from contextlib import suppress
 
+from senti.utils.sklearn_ import EmptyFitMixin
 from senti.utils.utils import PicklableProxy
 
 __all__ = ['CachedFitTransform', 'CachedIterable']
@@ -39,16 +40,17 @@ class CachedFitTransform(PicklableProxy):
         return self.__wrapped__.__dict__
 
     def fit(self, X, *args, **kwargs):
-        ignored = {}
-        key_params = self.__wrapped__.get_params(deep=True)
-        for param in self._self_ignored_params:
-            with suppress(KeyError):
-                ignored[param] = key_params.pop(param)
-        X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
-        fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
-        # don't use the unwrapped object as users may also use ObjectProxy
-        self.__wrapped__.__dict__, self._self_fit_hash, _ = \
-            self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
+        if not isinstance(self.__wrapped__, EmptyFitMixin):
+            ignored = {}
+            key_params = self.__wrapped__.get_params(deep=True)
+            for param in self._self_ignored_params:
+                with suppress(KeyError):
+                    ignored[param] = key_params.pop(param)
+            X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
+            fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
+            # don't use the unwrapped object as users may also use ObjectProxy
+            self.__wrapped__.__dict__, self._self_fit_hash, _ = \
+                self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):

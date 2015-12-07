@@ -5,11 +5,12 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['Elongations']
 
 
-class Elongations(BaseEstimator):
+class Elongations(BaseEstimator, EmptyFitMixin):
     '''
     Elongated vowels. Other possible constraints: letters, none.
     '''
@@ -33,9 +34,6 @@ class Elongations(BaseEstimator):
                     return True
                 prevprev, prev = prev, char
         return False
-
-    def fit(self, docs, y=None):
-        return self
 
     @reiterable
     def transform(self, docs):

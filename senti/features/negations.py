@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['NegationAppend', 'NegationCount']
 
@@ -35,13 +36,10 @@ class NegationBase(BaseEstimator):
                 negated = True
 
 
-class NegationAppend(NegationBase):
+class NegationAppend(NegationBase, EmptyFitMixin):
     '''
     Appends '_NEG' to words in negated contexts.
     '''
-
-    def fit(self, docs, y=None):
-        return self
 
     @reiterable
     def transform(self, docs):
@@ -52,13 +50,10 @@ class NegationAppend(NegationBase):
             yield doc
 
 
-class NegationCount(NegationBase):
+class NegationCount(NegationBase, EmptyFitMixin):
     '''
     Counts the # of negation contexts.
     '''
-
-    def fit(self, docs, y=None):
-        return self
 
     def transform(self, docs):
         vecs = []

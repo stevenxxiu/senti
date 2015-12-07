@@ -3,17 +3,15 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['AllCaps']
 
 
-class AllCaps(BaseEstimator):
+class AllCaps(BaseEstimator, EmptyFitMixin):
     '''
     Fully capitalised letters.
     '''
-
-    def fit(self, docs, y=None):
-        return self
 
     @staticmethod
     @reiterable

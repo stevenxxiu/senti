@@ -4,16 +4,14 @@ from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
 from senti.utils.numpy_ import sparse_sum, vstack
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['Map', 'MapTokens', 'Index', 'Count', 'Proportion', 'Clip']
 
 
-class Map(BaseEstimator):
+class Map(BaseEstimator, EmptyFitMixin):
     def __init__(self, func):
         self.func = func
-
-    def fit(self, X, y=None):
-        return self
 
     @reiterable
     def transform(self, docs):
@@ -21,12 +19,9 @@ class Map(BaseEstimator):
             yield self.func(doc)
 
 
-class MapTokens(BaseEstimator):
+class MapTokens(BaseEstimator, EmptyFitMixin):
     def __init__(self, func):
         self.func = func
-
-    def fit(self, docs, y=None):
-        return self
 
     @reiterable
     def transform(self, docs):
@@ -34,41 +29,29 @@ class MapTokens(BaseEstimator):
             yield list(map(self.func, doc))
 
 
-class Index(BaseEstimator):
+class Index(BaseEstimator, EmptyFitMixin):
     def __init__(self, i):
         self.i = i
-
-    def fit(self, docs, y=None):
-        return self
 
     def transform(self, docs):
         return vstack(doc[self.i] for doc in docs)
 
 
-class Count(BaseEstimator):
-    def fit(self, docs, y=None):
-        return self
-
+class Count(BaseEstimator, EmptyFitMixin):
     @staticmethod
     def transform(docs):
         return vstack(sparse_sum(doc, axis=0) for doc in docs)
 
 
-class Proportion(BaseEstimator):
-    def fit(self, docs, y=None):
-        return self
-
+class Proportion(BaseEstimator, EmptyFitMixin):
     @staticmethod
     def transform(docs):
         return vstack(sparse_sum(doc, axis=0)/doc.shape[0] for doc in docs)
 
 
-class Clip(BaseEstimator):
+class Clip(BaseEstimator, EmptyFitMixin):
     def __init__(self, max_len):
         self.max_len = max_len
-
-    def fit(self, docs, y=None):
-        return self
 
     def transform(self, docs):
         return vstack(np.hstack([

@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['Emoticons', 'EmoticonType']
 
@@ -40,7 +41,7 @@ class EmoticonType:
     HAPPY = 2
 
 
-class Emoticons(BaseEstimator):
+class Emoticons(BaseEstimator, EmptyFitMixin):
     '''
     Positive and negative emoticons.
     '''
@@ -58,9 +59,6 @@ class Emoticons(BaseEstimator):
             elif groups['rmouth'] in UNHAPPY_RMOUTHS:
                 return EmoticonType.UNHAPPY
         return EmoticonType.NEUTRAL
-
-    def fit(self, docs, y=None):
-        return self
 
     @reiterable
     def transform(self, docs):
