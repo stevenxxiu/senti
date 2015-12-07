@@ -125,8 +125,8 @@ class TestCachedIterable(unittest.TestCase):
 
     @reiterable
     def iterator(self):
-        yield from range(11)
+        yield from range(20)
 
     def test_pickle(self):
-        joblib.dump(CachedIterable(self.iterator(), 2), 'output')
-        self.assertListEqual(list(joblib.load('output')), list(range(11)))
+        joblib.dump(CachedIterable(self.iterator(), 3), 'output')
+        self.assertListEqual(list(joblib.load('output')), list(range(20)))

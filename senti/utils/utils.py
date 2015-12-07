@@ -1,10 +1,11 @@
 
+import itertools
 import logging
 from contextlib import contextmanager
 
 from wrapt import ObjectProxy
 
-__all__ = ['PicklableProxy', 'reiterable', 'compose', 'temp_log_level']
+__all__ = ['PicklableProxy', 'reiterable', 'compose', 'split_every', 'temp_log_level']
 
 
 class PicklableProxy(ObjectProxy):
@@ -72,6 +73,15 @@ class Compose:
         return res
 
 compose = Compose
+
+
+def split_every(iter_, n):
+    iter_ = iter(iter_)
+    while True:
+        res = list(itertools.islice(iter_, n))
+        if not res:
+            break
+        yield res
 
 
 @contextmanager

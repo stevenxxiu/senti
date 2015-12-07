@@ -5,7 +5,7 @@ import pickle
 from contextlib import suppress
 
 from senti.utils.sklearn_ import EmptyFitMixin
-from senti.utils.utils import PicklableProxy
+from senti.utils.utils import PicklableProxy, split_every
 
 __all__ = ['CachedFitTransform', 'CachedIterable']
 
@@ -99,12 +99,7 @@ class CachedIterable(PicklableProxy):
                 if not os.path.exists(os.path.join(self._self_path, name)):
                     break
             with open(os.path.join(self._self_path, name), 'wb') as sr:
-                res = []
-                for i, value in enumerate(self):
-                    if i > 0 and i % self._self_chunk_size == 0:
-                        pickle.dump(res, sr)
-                        res.clear()
-                    res.append(value)
-                pickle.dump(res, sr)
+                for chunk in split_every(self, self._self_chunk_size):
+                    pickle.dump(chunk, sr)
             self._self_name = name
         return super().__reduce__()
