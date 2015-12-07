@@ -18,12 +18,13 @@ class CNNChar(NNBase):
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
         l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
         l = lasagne.layers.DimshuffleLayer(l, (0, 2, 1))
-        conv_params = [(1024, 7, 3), (1024, 7, 3), (1024, 3, None), (1024, 3, None), (1024, 3, None), (1024, 3, 3)]
+        conv_params = [(256, 7, 3), (256, 7, 3), (256, 3, None), (256, 3, None), (256, 3, None), (256, 3, 3)]
         for num_filters, filter_size, k in conv_params:
-            l = lasagne.layers.Conv1DLayer(l, num_filters, filter_size, pad='full', nonlinearity=rectify)
+            l = lasagne.layers.Conv1DLayer(l, num_filters, filter_size, nonlinearity=rectify)
             if k is not None:
                 l = lasagne.layers.MaxPool1DLayer(l, k, ignore_border=False)
-        dense_params = [2048, 2048]
+        l = lasagne.layers.FlattenLayer(l)
+        dense_params = [1024, 1024]
         for num_units in dense_params:
             l = lasagne.layers.DenseLayer(l, num_units, nonlinearity=rectify)
             l = lasagne.layers.DropoutLayer(l, 0.5)
