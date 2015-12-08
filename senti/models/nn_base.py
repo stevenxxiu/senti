@@ -65,7 +65,7 @@ class NNBase(BaseEstimator):
         ))
         return dev_f1
 
-    def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None):
+    def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None, save_best=True):
         print('compiling...')
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
@@ -84,11 +84,12 @@ class NNBase(BaseEstimator):
             train_res = [train(*batch) for batch in batches]
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
-            if best_perf is None or perf >= best_perf:
+            if save_best and best_perf is None or perf >= best_perf:
                 best_perf = perf
                 best_params = {param: param.get_value() for param in params}
-        for param, value in best_params.items():
-            param.set_value(value)
+        if save_best:
+            for param, value in best_params.items():
+                param.set_value(value)
 
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)
