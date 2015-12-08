@@ -271,15 +271,18 @@ class SentiModels:
 
     def fit_cnn_char(self):
         alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
+        distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
         features = Pipeline([
             ('tokenize', Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))),
             ('embeddings', Embeddings(SimpleNamespace(
                 vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
             ), include_zero=True))
         ])
+        ft = features.transform
         classifier = CNNChar(batch_size=128, embeddings=features.named_steps['embeddings'], input_size=140)
-        kw = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_size=2000, max_epochs=100, **kw)
+        kw = dict(dev_X=ft(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        classifier.fit(ft(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
+        classifier.fit(ft(self.train_docs), self.train_labels(), epoch_size=2000, max_epochs=100, **kw)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
         return 'cnn_char', estimator
 
