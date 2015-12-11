@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import itertools
 import json
 import logging
 import os
@@ -20,7 +19,8 @@ def main():
     os.chdir('data/twitter')
     with ExitStack() as stack:
         # load data
-        train_sr = stack.enter_context(open('train.json'))
+        labelled_dir = 'semeval_random'
+        train_sr = stack.enter_context(open('{}/train.json'.format(labelled_dir)))
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
         distant_srs = [stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
@@ -28,10 +28,10 @@ def main():
         distant_labels = BalancedSlice((RepeatSr(0), RepeatSr(2)))
         unsup_sr = stack.enter_context(open('unsup.txt', encoding='utf-8'))
         unsup_docs = BalancedSlice([unsup_sr])
-        dev_sr = stack.enter_context(open('dev.json'))
+        dev_sr = stack.enter_context(open('{}/dev.json'.format(labelled_dir)))
         dev_docs = FieldExtractor(dev_sr, 'text')
         dev_labels = FieldExtractor(dev_sr, 'label')
-        test_sr = stack.enter_context(open('test.json'))
+        test_sr = stack.enter_context(open('{}/test.json'.format(labelled_dir)))
         test_docs = FieldExtractor(test_sr, 'text')
         test_labels = FieldExtractor(test_sr, 'label')
 
@@ -46,8 +46,8 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        # pipeline_name, pipeline = senti_models.fit_cnn()
-        pipeline_name, pipeline = senti_models.fit_cnn_char()
+        pipeline_name, pipeline = senti_models.fit_cnn()
+        # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_rnn()
 
         # test_data = [('dev', dev_docs, dev_labels)]
@@ -60,7 +60,7 @@ def main():
                 probs = pipeline.predict_proba(docs)
             except AttributeError:
                 probs = LabelBinarizer().fit(pipeline.classes_).transform(pipeline.predict(docs))
-            with open('{}.json'.format(name)) as sr, \
+            with open('{}/{}.json'.format(labelled_dir, name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
                 for line, prob in zip(sr, probs):
                     results_sr.write(json.dumps({

@@ -8,6 +8,7 @@ from contextlib import ExitStack, closing
 from multiprocessing import Pool
 
 from senti.features import Emoticons
+from senti.rand import get_rng
 
 
 def unique(seq):
@@ -115,23 +116,42 @@ class SemEvalData:
                 out_sr.write(json.dumps({'id': doc_id, 'text': text, 'label': cls.class_map[label]}) + '\n')
 
 
+def split_cross_validate(names, in_dir, out_dir):
+    lines = []
+    splits = []
+    for name in names:
+        with open(os.path.join(in_dir, name)) as sr:
+            cur_lines = list(sr)
+            lines.extend(cur_lines)
+            splits.append(len(cur_lines))
+    get_rng().shuffle(lines)
+    offset = 0
+    os.makedirs(out_dir)
+    for name, split in zip(names, splits):
+        with open(os.path.join(out_dir, name), 'w') as sr:
+            sr.writelines(lines[offset:offset + split])
+            offset += split
+
+
 def main():
     os.chdir('data/twitter')
     # UnsupData.unescape_unsup()
     # UnsupData.write_all_emote()
-    UnsupData.write_split_emote()
+    # UnsupData.write_split_emote()
     # for unitn_entry in [(
-    #     'dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
+    #     'semeval/dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
     #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
     # ), (
-    #     'train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+    #     'semeval/train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
     #     'input/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
     # )]:
     #     SemEvalData.write_unitn(*unitn_entry)
     # SemEvalData.write_test(
-    #     'test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
+    #     'semeval/test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
     #     'input/test/SemEval2015-task10-test-B-gold.txt'
     # )
+    split_cross_validate(['train.json', 'dev.json', 'test.json'], 'semeval', 'semeval_random')
+
 
 if __name__ == '__main__':
     main()
