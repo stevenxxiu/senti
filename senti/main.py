@@ -19,7 +19,7 @@ def main():
     os.chdir('data/twitter')
     with ExitStack() as stack:
         # load data
-        labelled_dir = 'semeval_random'
+        labelled_dir = 'semeval'
         train_sr = stack.enter_context(open('{}/train.json'.format(labelled_dir)))
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
