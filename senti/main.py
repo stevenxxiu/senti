@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sys
 from contextlib import ExitStack
 
 import numpy as np
@@ -15,6 +16,7 @@ from senti.utils import BalancedSlice, FieldExtractor, RepeatSr
 
 
 def main():
+    sys.setrecursionlimit(5000)
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s')
     os.chdir('data/twitter')
     with ExitStack() as stack:
