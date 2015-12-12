@@ -66,7 +66,7 @@ class NNBase(BaseEstimator):
     def create_model(self, *args, **kwargs):
         raise NotImplementedError
 
-    def gen_batches(self, X, y):
+    def gen_batches(self, X, y=None):
         raise NotImplementedError
 
     @staticmethod
@@ -100,7 +100,7 @@ class NNBase(BaseEstimator):
         epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
         for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
             train_res = [train(*batch, *update_params) for batch in batches]
-            dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
+            dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
             if save_best and best_perf is None or perf >= best_perf:
                 best_perf = perf

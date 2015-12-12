@@ -27,7 +27,7 @@ class RNN(NNBase):
         self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
         self.network = l
 
-    def gen_batches(self, docs, y):
+    def gen_batches(self, docs, y=None):
         docs = list(docs)
         n = len(docs)
         if y is None:

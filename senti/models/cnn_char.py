@@ -36,7 +36,7 @@ class CNNChar(NNBase):
         self.updates = lasagne.updates.adadelta(self.loss, params, *self.update_params)
         self.network = l
 
-    def gen_batches(self, X, y):
+    def gen_batches(self, X, y=None):
         input_size = self.kwargs['input_size']
         X = np.vstack(np.hstack([x[input_size-1::-1], np.zeros(max(input_size - x.size, 0), dtype='int32')]) for x in X)
         n = X.shape[0]

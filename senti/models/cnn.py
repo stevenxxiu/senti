@@ -49,7 +49,7 @@ class CNN(NNBase):
         self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
-    def gen_batches(self, X, y):
+    def gen_batches(self, X, y=None):
         X = np.vstack(np.hstack([x, np.zeros(self.kwargs['input_size'] - x.size, dtype='int32')]) for x in X)
         n = X.shape[0]
         if y is None:
