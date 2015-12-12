@@ -4,7 +4,7 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.nn_base import NNBase
+from senti.models.base.nn import NNBase
 from senti.rand import get_rng
 from senti.utils.lasagne_ import log_softmax
 
@@ -15,6 +15,7 @@ class CNNChar(NNBase):
     def create_model(self, embeddings, input_size):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
+        self.update_params = [T.scalar('learning_rate')]
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
         l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
         l = lasagne.layers.DimshuffleLayer(l, (0, 2, 1))
@@ -32,7 +33,7 @@ class CNNChar(NNBase):
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params)
+        self.updates = lasagne.updates.adadelta(self.loss, params, *self.update_params)
         self.network = l
 
     def gen_batches(self, X, y):

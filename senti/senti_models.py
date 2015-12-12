@@ -15,6 +15,7 @@ from sklearn.svm import LinearSVC
 
 from senti.features import *
 from senti.models import *
+from senti.models.base.nn import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
@@ -271,7 +272,7 @@ class SentiModels:
 
     def fit_cnn_char(self):
         alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
-        # distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
+        distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
         embeddings_ = Embeddings(SimpleNamespace(
             vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
         ), include_zero=True)
@@ -290,8 +291,14 @@ class SentiModels:
         ])
         classifier = CNNChar(batch_size=128, embeddings=embeddings_, input_size=140)
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        # classifier.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
-        classifier.fit(ft_syn.transform(self.train_docs), self.train_labels(), epoch_size=2000, max_epochs=100, **kw)
+        classifier.fit(
+            ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
+            update_params_iter=geometric_learning_rates(init=1), **kw
+        )
+        classifier.fit(
+            ft.transform(self.train_docs), self.train_labels(), epoch_size=2000, max_epochs=100,
+            update_params_iter=geometric_learning_rates(init=0.01), **kw
+        )
         estimator = Pipeline([('features', ft), ('classifier', classifier)])
         return 'cnn_char', estimator
 

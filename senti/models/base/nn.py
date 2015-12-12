@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.utils.multiclass import unique_labels
 
-__all__ = ['NNBase']
+__all__ = ['geometric_learning_rates', 'NNBase']
 
 
 class EpochIterator:
@@ -38,6 +38,14 @@ class EpochIterator:
             yield self._iter_batches()
 
 
+def geometric_learning_rates(init, ratio=None, repeat=None, n=0):
+    learning_rate = init
+    for i in range(n):
+        yield from itertools.repeat([learning_rate], repeat)
+        learning_rate *= ratio
+    yield from itertools.repeat([learning_rate])
+
+
 class NNBase(BaseEstimator):
     def __init__(self, batch_size, *args, **kwargs):
         self.batch_size = batch_size
@@ -45,9 +53,10 @@ class NNBase(BaseEstimator):
         self.kwargs = kwargs
         self.classes_ = None
         self.network = None
-        self.inputs = self.target = None
         self.constraints = {}
+        self.inputs = self.target = None
         self.updates = self.loss = self.probs = None
+        self.update_params = []
 
     def create_model(self, *args, **kwargs):
         raise NotImplementedError
@@ -65,7 +74,10 @@ class NNBase(BaseEstimator):
         ))
         return dev_f1
 
-    def fit(self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None, save_best=True):
+    def fit(
+        self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None,
+        update_params_iter=itertools.repeat([]), save_best=True
+    ):
         if not self.network:
             self.create_model(*self.args, **self.kwargs)
             for param, constraint in self.constraints.items():
@@ -73,14 +85,16 @@ class NNBase(BaseEstimator):
         self.classes_ = unique_labels(dev_y)
         predictions = T.argmax(self.probs, axis=1)
         acc = T.mean(T.eq(predictions, self.target))
-        train = theano.function(self.inputs + [self.target], [self.loss, acc], updates=self.updates)
+        train = theano.function(
+            [*self.inputs, self.target, *self.update_params], [self.loss, acc], updates=self.updates
+        )
         test = theano.function(self.inputs, predictions)
         print('training...')
         params = lasagne.layers.get_all_params(self.network)
         best_perf, best_params = None, None
         epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
-        for i, batches in zip(range(max_epochs), epoch_iter):
-            train_res = [train(*batch) for batch in batches]
+        for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
+            train_res = [train(*batch, *update_params) for batch in batches]
             dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X, None))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
             if save_best and best_perf is None or perf >= best_perf:
