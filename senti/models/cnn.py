@@ -58,4 +58,5 @@ class CNN(NNBase):
             indexes = np.hstack([get_rng().permutation(n), get_rng().choice(n, -n % self.batch_size)])
         for i in range(0, indexes.size, self.batch_size):
             X_batch = X[indexes[i:i + self.batch_size]]
-            yield (X_batch,) if y is None else (X_batch, y[indexes[i:i + self.batch_size]])
+            y_batch = y[indexes[i:i + self.batch_size]] if y is not None else None
+            yield (X_batch, y_batch)

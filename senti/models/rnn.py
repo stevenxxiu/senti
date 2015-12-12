@@ -41,4 +41,5 @@ class RNN(NNBase):
             for j, doc in enumerate(cur_docs):
                 X_batch[j, :len(doc)] = doc
                 mask_batch[j, :len(doc)] = 1
-            yield (X_batch, mask_batch) if y is None else (X_batch, mask_batch, y[indexes[i:i + self.batch_size]])
+            y_batch = y[indexes[i:i + self.batch_size]] if y is not None else None
+            yield X_batch, y_batch

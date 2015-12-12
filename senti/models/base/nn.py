@@ -56,7 +56,7 @@ class NNBase(BaseEstimator):
         self.classes_ = None
         self.network = None
         self.constraints = {}
-        self.inputs = self.target = self.features = None
+        self.inputs = self.target = None
         self.updates = self.loss = self.probs = None
         self.update_params = []
 
@@ -100,7 +100,7 @@ class NNBase(BaseEstimator):
         epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
         for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
             train_res = [train(*batch, *update_params) for batch in batches]
-            dev_res = np.hstack(test(*data) for data in self.gen_batches(dev_X))[:len(dev_y)]
+            dev_res = np.hstack(test(*batch[:-1]) for batch in self.gen_batches(dev_X))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
             if save_best and best_perf is None or perf >= best_perf:
                 best_perf = perf
@@ -111,8 +111,4 @@ class NNBase(BaseEstimator):
 
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)
-        return np.vstack(predict(*batch) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
-
-    def transform(self, docs):
-        transform = theano.function(self.inputs, self.features)
-        return np.vstack(transform(*batch) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
+        return np.vstack(predict(*batch[:-1]) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
