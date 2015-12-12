@@ -58,6 +58,9 @@ class NNBase(BaseEstimator):
         self.updates = self.loss = self.probs = None
         self.update_params = []
 
+    def get_params(self, deep=True):
+        return {'batch_size': self.batch_size, 'args': self.args, 'kwargs': self.kwargs}
+
     def create_model(self, *args, **kwargs):
         raise NotImplementedError
 
