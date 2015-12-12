@@ -289,19 +289,17 @@ class SentiModels:
             ('normalize', MapTokens(normalize_special)),
             ('embeddings', embeddings_),
         ])
-        classifier = CachedFitTransform(CNNChar(
+        cf_dist = CachedFitTransform(CNNChar(
             batch_size=128, embeddings=embeddings_, input_size=140, output_size=3
         ), self.memory)
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(
+        cf_dist.fit(
             ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
             update_params_iter=geometric_learning_rates(init=1), **kw
         )
-        classifier.fit(
-            ft.transform(self.train_docs), self.train_labels(), epoch_size=2000, max_epochs=100,
-            update_params_iter=geometric_learning_rates(init=0.01), **kw
-        )
-        estimator = Pipeline([('features', ft), ('classifier', classifier)])
+        cf = LogisticRegression(multi_class='multinomial', C=100, solver='lbfgs')
+        cf.fit(cf_dist.transform(ft.transform(self.train_docs)), self.train_labels())
+        estimator = Pipeline([('features', ft), ('cf_dist', cf_dist), ('cf', cf)])
         return 'cnn_char', estimator
 
     def fit_rnn(self):

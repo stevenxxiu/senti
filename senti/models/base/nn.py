@@ -56,7 +56,7 @@ class NNBase(BaseEstimator):
         self.classes_ = None
         self.network = None
         self.constraints = {}
-        self.inputs = self.target = None
+        self.inputs = self.target = self.features = None
         self.updates = self.loss = self.probs = None
         self.update_params = []
 
@@ -112,3 +112,7 @@ class NNBase(BaseEstimator):
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)
         return np.vstack(predict(*batch) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
+
+    def transform(self, docs):
+        transform = theano.function(self.inputs, self.features)
+        return np.vstack(transform(*batch) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]

@@ -29,6 +29,7 @@ class CNNChar(NNBase):
         for num_units in dense_params:
             l = lasagne.layers.DenseLayer(l, num_units, nonlinearity=rectify)
             l = lasagne.layers.DropoutLayer(l, 0.5)
+        self.features = lasagne.layers.get_output(l, deterministic=True)
         l = lasagne.layers.DenseLayer(l, 3, nonlinearity=log_softmax)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
