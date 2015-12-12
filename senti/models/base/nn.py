@@ -111,4 +111,4 @@ class NNBase(BaseEstimator):
 
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)
-        return np.vstack(predict(*data) for data in self.gen_batches(docs, None))[:sum(1 for _ in docs)]
+        return np.vstack(predict(*batch) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
