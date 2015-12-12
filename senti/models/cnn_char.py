@@ -12,7 +12,7 @@ __all__ = ['CNNChar']
 
 
 class CNNChar(NNBase):
-    def create_model(self, embeddings, input_size):
+    def create_model(self, embeddings, input_size, output_size):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
         self.update_params = [T.scalar('learning_rate')]
