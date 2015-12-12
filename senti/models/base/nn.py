@@ -21,11 +21,13 @@ class EpochIterator:
         self.train_pass = 0
 
     def _iter_batches(self):
-        for i in itertools.count(0):
+        i = 0
+        while True:
             try:
                 if self.epoch_size is not None and i >= self.epoch_size:
                     return
                 yield next(self.batch_iter)
+                i += 1
             except StopIteration:
                 if self.epoch_size is None and i > 0:
                     return
