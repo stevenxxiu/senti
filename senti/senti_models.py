@@ -259,7 +259,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features, embeddings_ = self.fit_embedding(embedding_type, construct_docs, tokenize_sense)
-        classifier = CNN(
+        classifier = CNNWord(
             batch_size=64, embeddings=embeddings_, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
             output_size=3, static_mode=1, norm_lim=3
         )
@@ -306,7 +306,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
-        classifier = RNN(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
+        classifier = RNNWord(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
         kw = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
         estimator = Pipeline([('features', features), ('classifier', classifier)])

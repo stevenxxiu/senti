@@ -8,10 +8,10 @@ from senti.models.base.nn import NNBase
 from senti.rand import get_rng
 from senti.utils.lasagne_ import log_softmax
 
-__all__ = ['CNN']
+__all__ = ['CNNWord']
 
 
-class CNN(NNBase):
+class CNNWord(NNBase):
     def create_model(self, embeddings, input_size, conv_param, dense_params, output_size, static_mode, norm_lim):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
