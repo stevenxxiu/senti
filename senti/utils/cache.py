@@ -10,6 +10,7 @@ from senti.utils.utils import PicklableProxy, split_every
 __all__ = ['CachedFitTransform', 'CachedIterable']
 
 
+# noinspection PyProtectedMember
 class CachedFitTransform(PicklableProxy):
     '''
     Optional hashing of the data is used for fit & transform for speed. This means that the same data may be cached
@@ -30,11 +31,6 @@ class CachedFitTransform(PicklableProxy):
         self._self_memory = memory
         self._self_ignored_params = ignored_params
 
-    @staticmethod
-    def _cached_call(func, *args, **kwargs):
-        # noinspection PyProtectedMember
-        return func._cached_call(args, kwargs)
-
     def _cached_fit(self, cls, key_params, X, X_hash, *args, **kwargs):
         self.__wrapped__.fit(X, *args, **kwargs)
         return self.__wrapped__.__dict__
@@ -50,7 +46,7 @@ class CachedFitTransform(PicklableProxy):
             fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
             # don't use the unwrapped object as users may also use ObjectProxy
             self.__wrapped__.__dict__, self._self_fit_hash, _ = \
-                self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
+                fit_func._cached_call([type(self.__wrapped__), key_params, X, X_hash, *args], kwargs)
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):
@@ -60,7 +56,7 @@ class CachedFitTransform(PicklableProxy):
     def transform(self, X):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
         transform_func = self._self_cached_transform_hash if X_hash else self._self_cached_transform
-        res, res_hash, _ = self._cached_call(transform_func, type(self.__wrapped__), self._self_fit_hash, X_hash, X)
+        res, res_hash, _ = transform_func._cached_call([type(self.__wrapped__), self._self_fit_hash, X_hash, X], {})
         if not isinstance(res, PicklableProxy):
             res = PicklableProxy(res)
         res._self_joblib_hash = res_hash
