@@ -294,7 +294,7 @@ class SentiModels:
         ), self.memory)
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         cf_dist.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
-        cf = CNNCharShallow(batch_size=128, model=cf_dist)
+        cf = NNShallow(batch_size=128, model=cf_dist, num_train=1)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', ft), ('cf', cf)])
         return 'cnn_char', estimator
