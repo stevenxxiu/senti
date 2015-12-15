@@ -263,7 +263,6 @@ class SentiModels:
             batch_size=64, embeddings=embeddings_, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
             output_size=3, static_mode=1, norm_lim=3
         )
-        ft = Pipeline([('index', ft), ('clip', Clip(56))])
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         cf.fit(ft.transform(distant_docs), distant_labels(), max_epochs=1, **kw)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)

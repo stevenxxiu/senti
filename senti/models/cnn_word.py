@@ -50,7 +50,8 @@ class CNNWord(NNBase):
         self.network = l
 
     def gen_batches(self, X, y=None):
-        X = np.vstack(np.hstack([x, np.zeros(self.kwargs['input_size'] - x.size, dtype='int32')]) for x in X)
+        input_size = self.kwargs['input_size']
+        X = np.vstack(np.hstack([x[:input_size], np.zeros(max(input_size - x.size, 0), dtype='int32')]) for x in X)
         n = X.shape[0]
         if y is None:
             indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
