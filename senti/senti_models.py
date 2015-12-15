@@ -258,16 +258,16 @@ class SentiModels:
             ('tokenize', Map(compose(tokenize, normalize_special))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
-        features, embeddings_ = self.fit_embedding(embedding_type, construct_docs, tokenize_sense)
-        classifier = CNNWord(
+        ft, embeddings_ = self.fit_embedding(embedding_type, construct_docs, tokenize_sense)
+        cf = CNNWord(
             batch_size=64, embeddings=embeddings_, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
             output_size=3, static_mode=1, norm_lim=3
         )
-        features = Pipeline([('index', features), ('clip', Clip(56))])
-        kw = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(distant_docs), distant_labels(), max_epochs=1, **kw)
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
-        estimator = Pipeline([('features', features), ('classifier', classifier)])
+        ft = Pipeline([('index', ft), ('clip', Clip(56))])
+        kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        cf.fit(ft.transform(distant_docs), distant_labels(), max_epochs=1, **kw)
+        cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
+        estimator = Pipeline([('features', ft), ('classifier', cf)])
         return 'cnn_word(embedding={})'.format(embedding_type), estimator
 
     def fit_cnn_char(self):
@@ -310,9 +310,9 @@ class SentiModels:
             ('tokenize', Map(compose(tokenize, normalize_special))),
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
-        features, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
-        classifier = RNNWord(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
-        kw = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
-        estimator = Pipeline([('features', features), ('classifier', classifier)])
+        ft, embeddings_ = self.fit_embedding(embedding_type, [self.dev_docs, self.train_docs], tokenize_sense)
+        cf = RNNWord(batch_size=64, embeddings=embeddings_, lstm_param=300, output_size=3)
+        kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
+        estimator = Pipeline([('features', ft), ('classifier', cf)])
         return 'rnn_word(embedding={})'.format(embedding_type), estimator
