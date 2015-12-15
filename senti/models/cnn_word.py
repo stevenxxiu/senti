@@ -38,7 +38,7 @@ class CNNWord(NNBase):
         l = lasagne.layers.ConcatLayer(l_convs)
         l = lasagne.layers.DropoutLayer(l, 0.5)
         for dense_param in dense_params:
-            l = lasagne.layers.DenseLayer(l, dense_param, nonlinearity=identity)
+            l = lasagne.layers.DenseLayer(l, dense_param, nonlinearity=rectify)
             self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
             l = lasagne.layers.DropoutLayer(l, 0.5)
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
