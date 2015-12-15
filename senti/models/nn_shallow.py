@@ -24,8 +24,8 @@ class NNShallow(NNBase):
         for _ in range(num_train - 1):
             l = l.input_layer
         self._features = theano.function(model.inputs, lasagne.layers.get_output(l.input_layer, deterministic=True))
-        l_in = lasagne.layers.InputLayer(lasagne.layers.get_output_shape(l.input_layer))
-        self.inputs = [l_in.input_var]
+        self.inputs = [lasagne.layers.get_output_shape(l.input_layer)]
+        l_in = lasagne.layers.InputLayer(self.inputs[0])
         l.input_shape = l_in.shape
         l.input_layer = l_in
         l = model.network
