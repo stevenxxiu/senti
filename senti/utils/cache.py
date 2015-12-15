@@ -2,6 +2,7 @@
 import itertools
 import os
 import pickle
+import shutil
 from contextlib import suppress
 
 from senti.utils.sklearn_ import EmptyFitMixin
@@ -31,22 +32,29 @@ class CachedFitTransform(PicklableProxy):
         self._self_memory = memory
         self._self_ignored_params = ignored_params
 
+    @staticmethod
+    def _cached_call(func, *args, clear_cache=False, **kwargs):
+        if clear_cache:
+            output_dir, argument_hash = func._get_output_dir(*args, **kwargs)
+            shutil.rmtree(output_dir)
+        return func._cached_call(args, kwargs)
+
     def _cached_fit(self, cls, key_params, X, X_hash, *args, **kwargs):
         self.__wrapped__.fit(X, *args, **kwargs)
-        return self.__wrapped__.__dict__
+        return self.__wrapped__
 
     def fit(self, X, *args, **kwargs):
-        if not isinstance(self.__wrapped__, EmptyFitMixin):
-            ignored = {}
-            key_params = self.__wrapped__.get_params(deep=True)
-            for param in self._self_ignored_params:
-                with suppress(KeyError):
-                    ignored[param] = key_params.pop(param)
-            X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
-            fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
-            # don't use the unwrapped object as users may also use ObjectProxy
-            self.__wrapped__.__dict__, self._self_fit_hash, _ = \
-                fit_func._cached_call([type(self.__wrapped__), key_params, X, X_hash, *args], kwargs)
+        if isinstance(self.__wrapped__, EmptyFitMixin):
+            return self
+        ignored = {}
+        key_params = self.__wrapped__.get_params(deep=True)
+        for param in self._self_ignored_params:
+            with suppress(KeyError):
+                ignored[param] = key_params.pop(param)
+        X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
+        fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
+        res, res_hash, _ = self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
+        self.__wrapped__, self._self_fit_hash = res, res_hash
         return self
 
     def _cached_transform(self, cls, fit_hash, X_hash, X):
@@ -56,7 +64,7 @@ class CachedFitTransform(PicklableProxy):
     def transform(self, X):
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
         transform_func = self._self_cached_transform_hash if X_hash else self._self_cached_transform
-        res, res_hash, _ = transform_func._cached_call([type(self.__wrapped__), self._self_fit_hash, X_hash, X], {})
+        res, res_hash, _ = self._cached_call(transform_func, type(self.__wrapped__), self._self_fit_hash, X_hash, X)
         if not isinstance(res, PicklableProxy):
             res = PicklableProxy(res)
         res._self_joblib_hash = res_hash

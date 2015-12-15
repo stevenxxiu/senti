@@ -110,6 +110,15 @@ class TestCachedFitTransform(unittest.TestCase):
             self.assertEqual(obj.transform(X), 1)
             self.assertEqual(mock.call_count, 0)
 
+    def test_clear(self):
+        obj = CachedFitTransform(EsimatorA(1), self.memory)
+        obj.fit(1)
+        obj = CachedFitTransform(EsimatorA(1), self.memory)
+        with set_mock(MagicMock) as mock:
+            obj.fit(1, clear_cache=True)
+            self.assertEqual(obj.X, 1)
+            self.assertEqual(mock.call_count, 1)
+
 
 # noinspection PyUnresolvedReferences
 class TestCachedIterable(unittest.TestCase):
