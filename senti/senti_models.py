@@ -249,7 +249,7 @@ class SentiModels:
         estimator.fit(construct_docs)
         return AsCorporas(estimator), estimator.named_steps['embeddings'].estimator
 
-    def fit_cnn(self):
+    def fit_cnn_word(self):
         embedding_type = 'google'
         construct_docs = [self.dev_docs, self.train_docs]
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
@@ -268,7 +268,7 @@ class SentiModels:
         classifier.fit(features.transform(distant_docs), distant_labels(), max_epochs=1, **kw)
         classifier.fit(features.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
-        return 'cnn(embedding={})'.format(embedding_type), estimator
+        return 'cnn_word(embedding={})'.format(embedding_type), estimator
 
     def fit_cnn_char(self):
         alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
@@ -305,7 +305,7 @@ class SentiModels:
         estimator = Pipeline([('features', ft), ('classifier', classifier)])
         return 'cnn_char', estimator
 
-    def fit_rnn(self):
+    def fit_rnn_word(self):
         embedding_type = 'google'
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', Map(compose(tokenize, normalize_special))),
@@ -316,4 +316,4 @@ class SentiModels:
         kw = dict(dev_X=features.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         classifier.fit(features.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
         estimator = Pipeline([('features', features), ('classifier', classifier)])
-        return 'rnn(embedding={})'.format(embedding_type), estimator
+        return 'rnn_word(embedding={})'.format(embedding_type), estimator
