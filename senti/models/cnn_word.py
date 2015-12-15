@@ -5,7 +5,6 @@ import theano.tensor as T
 from lasagne.nonlinearities import *
 
 from senti.models.base.nn import NNBase
-from senti.rand import get_rng
 from senti.utils.lasagne_ import log_softmax
 
 __all__ = ['CNNWord']
@@ -49,15 +48,6 @@ class CNNWord(NNBase):
         self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
-    def gen_batches(self, X, y=None):
+    def gen_batch(self, X, y=None):
         input_size = self.kwargs['input_size']
-        X = np.vstack(np.hstack([x[:input_size], np.zeros(max(input_size - x.size, 0), dtype='int32')]) for x in X)
-        n = X.shape[0]
-        if y is None:
-            indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
-        else:
-            indexes = np.hstack([get_rng().permutation(n), get_rng().choice(n, -n % self.batch_size)])
-        for i in range(0, indexes.size, self.batch_size):
-            X_batch = X[indexes[i:i + self.batch_size]]
-            y_batch = y[indexes[i:i + self.batch_size]] if y is not None else None
-            yield (X_batch, y_batch)
+        return np.vstack(np.pad(x[:input_size], (0, max(input_size - x.size, 0)), 'constant') for x in X), y

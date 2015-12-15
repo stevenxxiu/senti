@@ -5,7 +5,6 @@ import theano.tensor as T
 from lasagne.nonlinearities import *
 
 from senti.models.base.nn import NNBase
-from senti.rand import get_rng
 from senti.utils.lasagne_ import log_softmax
 
 __all__ = ['RNNWord']
@@ -27,19 +26,11 @@ class RNNWord(NNBase):
         self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
         self.network = l
 
-    def gen_batches(self, docs, y=None):
-        docs = list(docs)
-        n = len(docs)
-        if y is None:
-            indexes = np.hstack([np.arange(n), np.zeros(-n % self.batch_size, dtype='int32')])
-        else:
-            indexes = np.hstack([get_rng().permutation(n), get_rng().choice(n, -n % self.batch_size)])
-        for i in range(0, indexes.size, self.batch_size):
-            cur_docs = [docs[indexes[j]] for j in range(i, i + self.batch_size)]
-            shape = (self.batch_size, max(map(len, cur_docs)))
-            X_batch, mask_batch = np.zeros(shape, dtype='int32'), np.zeros(shape, dtype='bool')
-            for j, doc in enumerate(cur_docs):
-                X_batch[j, :len(doc)] = doc
-                mask_batch[j, :len(doc)] = 1
-            y_batch = y[indexes[i:i + self.batch_size]] if y is not None else None
-            yield X_batch, y_batch
+    def gen_batch(self, docs, y=None):
+        shape = (self.batch_size, max(map(len, docs)))
+        X = np.zeros(shape, dtype='int32')
+        mask = np.zeros(shape, dtype='bool')
+        for i, doc in enumerate(docs):
+            X[i, :len(doc)] = doc
+            mask[i, :len(doc)] = 1
+        yield X, mask, y

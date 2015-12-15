@@ -9,7 +9,17 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.utils.multiclass import unique_labels
 
+from senti.rand import get_rng
+
 __all__ = ['geometric_learning_rates', 'NNBase']
+
+
+def geometric_learning_rates(init, ratio=None, repeat=None, n=0):
+    learning_rate = init
+    for i in range(n):
+        yield from itertools.repeat([learning_rate], repeat)
+        learning_rate *= ratio
+    yield from itertools.repeat([learning_rate])
 
 
 class EpochIterator:
@@ -40,14 +50,6 @@ class EpochIterator:
             yield self._iter_batches()
 
 
-def geometric_learning_rates(init, ratio=None, repeat=None, n=0):
-    learning_rate = init
-    for i in range(n):
-        yield from itertools.repeat([learning_rate], repeat)
-        learning_rate *= ratio
-    yield from itertools.repeat([learning_rate])
-
-
 class NNBase(BaseEstimator):
     def __init__(self, batch_size, *args, **kwargs):
         self.batch_size = batch_size
@@ -68,8 +70,18 @@ class NNBase(BaseEstimator):
     def create_model(self, *args, **kwargs):
         raise NotImplementedError
 
-    def gen_batches(self, X, y=None):
+    def gen_batch(self, docs, y=None):
         raise NotImplementedError
+
+    def gen_batches(self, docs, y=None):
+        docs = list(zip(docs, y)) if y is not None else list(docs)
+        if y is not None:
+            get_rng().shuffle(docs)
+        for i in range(0, len(docs), self.batch_size):
+            cur_docs = docs[i:i + self.batch_size]
+            if len(cur_docs) < self.batch_size:
+                cur_docs.extend(docs[i] for i in get_rng().choice(len(docs), self.batch_size - len(cur_docs), False))
+            yield self.gen_batch(*zip(*cur_docs)) if y is not None else self.gen_batch(cur_docs)
 
     @staticmethod
     def perf(epoch, train_res, dev_res, dev_y, average_classes):

@@ -1,11 +1,13 @@
 
+import itertools
+
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
 from senti.utils.numpy_ import sparse_sum, vstack
 from senti.utils.sklearn_ import EmptyFitMixin
 
-__all__ = ['Map', 'MapTokens', 'Index', 'Count', 'Proportion']
+__all__ = ['Map', 'MapTokens', 'Zip', 'Index', 'Count', 'Proportion']
 
 
 class Map(BaseEstimator, EmptyFitMixin):
@@ -26,6 +28,15 @@ class MapTokens(BaseEstimator, EmptyFitMixin):
     def transform(self, docs):
         for doc in docs:
             yield list(map(self.func, doc))
+
+
+class Zip(BaseEstimator, EmptyFitMixin):
+    def __init__(self, *estimators):
+        self.estimators = estimators
+
+    @reiterable
+    def transform(self, docs):
+        yield from itertools.zip_longest(*(estimator.transform(docs) for estimator in self.estimators))
 
 
 class Index(BaseEstimator, EmptyFitMixin):

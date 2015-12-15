@@ -49,8 +49,9 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
         # pipeline_name, pipeline = senti_models.fit_cnn_word()
-        pipeline_name, pipeline = senti_models.fit_cnn_char()
+        # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_word()
+        pipeline_name, pipeline = senti_models.fit_cnn_word_char()
 
         # test_data = [('dev', dev_docs, dev_labels)]
         test_data = [('dev', dev_docs, dev_labels), ('test', test_docs, test_labels)]
