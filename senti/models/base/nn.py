@@ -55,10 +55,12 @@ class NNBase(BaseEstimator):
         self.kwargs = kwargs
         self.classes_ = None
         self.network = None
-        self.constraints = {}
-        self.inputs = self.target = None
-        self.updates = self.loss = self.probs = None
+        self.inputs = self.target = self.loss = self.probs = None
+        self.updates, self.constraints = {}, {}
         self.update_params = []
+        self.create_model(*args, **kwargs)
+        for param, constraint in self.constraints.items():
+            self.updates[param] = constraint(param, self.updates[param])
 
     def get_params(self, deep=True):
         return {'batch_size': self.batch_size, 'args': self.args, 'kwargs': self.kwargs}
@@ -83,10 +85,6 @@ class NNBase(BaseEstimator):
         self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None,
         update_params_iter=itertools.repeat([]), save_best=True
     ):
-        if not self.network:
-            self.create_model(*self.args, **self.kwargs)
-            for param, constraint in self.constraints.items():
-                self.updates[param] = constraint(param, self.updates[param])
         self.classes_ = unique_labels(dev_y)
         predictions = T.argmax(self.probs, axis=1)
         acc = T.mean(T.eq(predictions, self.target))
