@@ -15,7 +15,6 @@ from sklearn.svm import LinearSVC
 
 from senti.features import *
 from senti.models import *
-from senti.models.base.nn import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
