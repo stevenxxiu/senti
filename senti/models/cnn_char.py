@@ -16,6 +16,7 @@ class CNNChar(NNBase):
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
         l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+        self.constraints[l.W] = lambda u, v: u
         l = lasagne.layers.DimshuffleLayer(l, (0, 2, 1))
         conv_params = [(256, 7, 3), (256, 7, 3), (256, 3, None), (256, 3, None), (256, 3, None), (256, 3, 3)]
         for num_filters, filter_size, k in conv_params:
