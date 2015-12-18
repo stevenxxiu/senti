@@ -112,7 +112,7 @@ class NNBase(BaseEstimator):
             train_res = [train(*batch, *update_params) for batch in batches]
             dev_res = np.hstack(test(*batch[:-1]) for batch in self.gen_batches(dev_X))[:len(dev_y)]
             perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
-            if save_best and best_perf is None or perf >= best_perf:
+            if save_best and (best_perf is None or perf >= best_perf):
                 best_perf = perf
                 best_params = {param: param.get_value() for param in params}
         if save_best:
