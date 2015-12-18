@@ -41,7 +41,7 @@ class EpochIterator:
             except StopIteration:
                 if self.epoch_size is None and i > 0:
                     return
-                print('training set pass {}'.format(self.train_pass))
+                print('training set pass {}'.format(self.train_pass + 1))
                 self.batch_iter = self.gen_batches(*self.args)
                 self.train_pass += 1
 
