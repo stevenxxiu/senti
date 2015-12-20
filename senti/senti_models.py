@@ -242,17 +242,20 @@ class SentiModels:
             ('tokenize', MapCorporas(tokenize_)),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
             ('embeddings', MapCorporas(Embeddings(
-                embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape), include_zero=True
+                embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape).astype('float32'),
+                include_zero=True
             ))),
         ])
         estimator.fit(construct_docs)
         return estimator.named_steps['embeddings'].estimator
 
     @staticmethod
-    def fit_embedding_char(alphabet):
-        return Embeddings(SimpleNamespace(
-            vocab=dict(zip(alphabet, range(len(alphabet)))), X=np.identity(len(alphabet), dtype='float32')
-        ), include_zero=True)
+    def fit_embedding_char(embedding_type, alphabet):
+        if embedding_type == 'one':
+            X = np.identity(len(alphabet), dtype='float32')
+        else:
+            X = get_rng().uniform(-0.25, 0.25, (len(alphabet), 15)).astype('float32')
+        return Embeddings(SimpleNamespace(vocab=dict(zip(alphabet, range(len(alphabet)))), X=X), include_zero=True)
 
     def fit_cnn_word(self):
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
@@ -280,7 +283,7 @@ class SentiModels:
         distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
         normalize = Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))
         alphabet = ' abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
-        embeddings_ = self.fit_embedding_char(alphabet)
+        embeddings_ = self.fit_embedding_char('one', alphabet)
         ft = Pipeline([
             ('normalize', normalize),
             ('embeddings', embeddings_)
@@ -299,7 +302,7 @@ class SentiModels:
             ('typos', IntroduceTypos(alphabet)),
             ('embeddings', embeddings_)
         ])
-        cf = CNNChar(batch_size=128, embeddings=embeddings_, input_size=140, output_size=3)
+        cf = CNNChar(batch_size=128, embeddings=embeddings_, input_size=140, output_size=3, static_mode=0)
         # cf = CachedFitTransform(cf, self.memory)
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
