@@ -300,11 +300,11 @@ class SentiModels:
             ('embeddings', embeddings_)
         ])
         cf = CNNChar(batch_size=128, embeddings=embeddings_, input_size=140, output_size=3)
+        # cf = CachedFitTransform(cf, self.memory)
         kw = dict(dev_X=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        cf_dist = CachedFitTransform(cf, self.memory)
-        cf_dist.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
+        cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         # cf = NNShallow(batch_size=128, model=classifier, num_train=5)
-        cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
+        cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=15, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
         return 'cnn_char', estimator
 

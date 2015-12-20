@@ -11,7 +11,7 @@ __all__ = ['CNNWord']
 
 
 class CNNWord(NNBase):
-    def create_model(self, embeddings, input_size, conv_param, dense_params, output_size, static_mode, norm_lim):
+    def create_model(self, embeddings, input_size, conv_param, dense_params, output_size, static_mode, max_norm):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
@@ -38,10 +38,10 @@ class CNNWord(NNBase):
         l = lasagne.layers.DropoutLayer(l)
         for dense_param in dense_params:
             l = lasagne.layers.DenseLayer(l, dense_param, nonlinearity=rectify)
-            self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+            self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
             l = lasagne.layers.DropoutLayer(l)
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
-        self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, norm_lim)
+        self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
         self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
         params = lasagne.layers.get_all_params(l, trainable=True)

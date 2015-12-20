@@ -24,9 +24,11 @@ class CNNChar(NNBase):
             if k is not None:
                 l = lasagne.layers.MaxPool1DLayer(l, k, ignore_border=False)
         l = lasagne.layers.FlattenLayer(l)
-        dense_params = [1024, 1024]
-        for num_units in dense_params:
+        dense_params = [(1024, 1), (1024, 20)]
+        for num_units, max_norm in dense_params:
             l = lasagne.layers.DenseLayer(l, num_units, nonlinearity=rectify)
+            if max_norm:
+                self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
             l = lasagne.layers.DropoutLayer(l)
         l = lasagne.layers.DenseLayer(l, 3, nonlinearity=log_softmax)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
