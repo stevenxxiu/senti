@@ -35,7 +35,6 @@ class NNShallow(NNBase):
         self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l
 
-    def gen_batches(self, X, y=None):
+    def gen_batch(self, X, y=None):
         model = self.kwargs['model']
-        for X_batch, y_batch in model.gen_batches(X, y):
-            yield (self._features(X_batch), y_batch)
+        return model.gen_batch(X, y)
