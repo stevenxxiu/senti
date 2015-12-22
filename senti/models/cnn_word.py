@@ -5,7 +5,7 @@ import theano.tensor as T
 from lasagne.nonlinearities import *
 
 from senti.models.base.nn import NNBase
-from senti.utils.lasagne_ import log_softmax
+from senti.utils.lasagne_ import *
 
 __all__ = ['CNNWord']
 
@@ -43,7 +43,7 @@ class CNNWord(NNBase):
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
         self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
+        self.loss = T.mean(categorical_crossentropy_exp(lasagne.layers.get_output(l), self.target, self.batch_size))
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l

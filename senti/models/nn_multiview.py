@@ -1,10 +1,9 @@
 
 import lasagne
-import numpy as np
 import theano.tensor as T
 
 from senti.models.base.nn import NNBase
-from senti.utils.lasagne_ import log_softmax
+from senti.utils.lasagne_ import *
 
 __all__ = ['NNMultiView']
 
@@ -20,7 +19,7 @@ class NNMultiView(NNBase):
         l = lasagne.layers.DropoutLayer(l)
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
+        self.loss = T.mean(categorical_crossentropy_exp(lasagne.layers.get_output(l), self.target, self.batch_size))
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params)
         self.network = l

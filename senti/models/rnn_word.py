@@ -5,7 +5,7 @@ import theano.tensor as T
 from lasagne.nonlinearities import *
 
 from senti.models.base.nn import NNBase
-from senti.utils.lasagne_ import log_softmax
+from senti.utils.lasagne_ import *
 
 __all__ = ['RNNWord']
 
@@ -21,7 +21,7 @@ class RNNWord(NNBase):
         l = lasagne.layers.SliceLayer(l, -1, 1)
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = -T.mean(lasagne.layers.get_output(l)[np.arange(self.batch_size), self.target])
+        self.loss = T.mean(categorical_crossentropy_exp(lasagne.layers.get_output(l), self.target, self.batch_size))
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
         self.network = l

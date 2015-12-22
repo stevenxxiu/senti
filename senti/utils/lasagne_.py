@@ -1,13 +1,23 @@
 
+import numpy as np
 import theano.tensor as T
 from lasagne.layers import Layer
 
-__all__ = ['log_softmax', 'KMaxPool1DLayer']
+__all__ = ['log_softmax', 'categorical_crossentropy_exp', 'KMaxPool1DLayer']
 
 
 def log_softmax(x):
     xdev = x - x.max(1, keepdims=True)
     return xdev - T.log(T.sum(T.exp(xdev), axis=1, keepdims=True))
+
+
+def categorical_crossentropy_exp(log_predictions, targets, batch_size=None):
+    if targets.ndim == log_predictions.ndim:
+        return -T.sum(targets * log_predictions, axis=1)
+    elif targets.ndim == log_predictions.ndim - 1:
+        return -log_predictions[np.arange(batch_size), targets]
+    else:
+        raise TypeError('rank mismatch between coding and true distributions')
 
 
 class KMaxPool1DLayer(Layer):
