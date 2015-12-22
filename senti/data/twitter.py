@@ -2,6 +2,7 @@
 
 import html
 import json
+import logging
 import os
 import re
 from contextlib import ExitStack, closing
@@ -98,9 +99,9 @@ class SemEvalData:
                 if text_download != 'Not Available':
                     # some differences are impossible to reconcile, some unitn data have the wrong order
                     # if re.sub(r'\s+', ' ', text_unitn) != re.sub(r'\s+', ' ', text_download):
-                    #     print(out_path)
-                    #     print(text_unitn)
-                    #     print(text_download)
+                    #     logging.error(out_path)
+                    #     logging.error(text_unitn)
+                    #     logging.error(text_download)
                     # assert re.sub(r'\s+', ' ', text_unitn) == re.sub(r'\s+', ' ', text_download)
                     text = text_download
                 out_sr.write(json.dumps({'id': doc_id_unitn, 'text': text, 'label': cls.class_map[label_unitn]}) + '\n')

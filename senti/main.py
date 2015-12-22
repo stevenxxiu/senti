@@ -17,7 +17,7 @@ from senti.utils import BalancedSlice, FieldExtractor, RepeatSr
 
 def main():
     sys.setrecursionlimit(5000)
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s')
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     os.chdir('data/twitter')
     with ExitStack() as stack:
         # load data

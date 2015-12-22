@@ -1,5 +1,6 @@
 
 import itertools
+import logging
 
 import lasagne
 import numpy as np
@@ -10,6 +11,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.utils.multiclass import unique_labels
 
 from senti.rand import get_rng
+from senti.utils import log_time
 
 __all__ = ['geometric_learning_rates', 'NNBase']
 
@@ -41,7 +43,7 @@ class EpochIterator:
             except StopIteration:
                 if self.epoch_size is None and i > 0:
                     return
-                print('training set pass {}'.format(self.train_pass + 1))
+                logging.info('training set pass {}'.format(self.train_pass + 1))
                 self.batch_iter = self.gen_batches(*self.args)
                 self.train_pass += 1
 
@@ -88,7 +90,7 @@ class NNBase(BaseEstimator):
         train_loss, train_acc = np.mean(train_res, axis=0)
         dev_acc = accuracy_score(dev_res, dev_y)
         dev_f1 = np.mean(precision_recall_fscore_support(dev_res, dev_y)[2][average_classes])
-        print('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
+        logging.info('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
             epoch + 1, train_loss, train_acc, dev_acc, dev_f1
         ))
         return dev_f1
@@ -104,20 +106,20 @@ class NNBase(BaseEstimator):
             [*self.inputs, self.target, *self.update_params], [self.loss, acc], updates=self.updates
         )
         test = theano.function(self.inputs, predictions)
-        print('training...')
-        params = lasagne.layers.get_all_params(self.network)
-        best_perf, best_params = None, None
-        epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
-        for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
-            train_res = [train(*batch, *update_params) for batch in batches]
-            dev_res = np.hstack(test(*batch[:-1]) for batch in self.gen_batches(dev_X))[:len(dev_y)]
-            perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
-            if save_best and (best_perf is None or perf >= best_perf):
-                best_perf = perf
-                best_params = {param: param.get_value() for param in params}
-        if save_best:
-            for param, value in best_params.items():
-                param.set_value(value)
+        with log_time('training...', 'training took {:.0f}s'):
+            params = lasagne.layers.get_all_params(self.network)
+            best_perf, best_params = None, None
+            epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
+            for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
+                train_res = [train(*batch, *update_params) for batch in batches]
+                dev_res = np.hstack(test(*batch[:-1]) for batch in self.gen_batches(dev_X))[:len(dev_y)]
+                perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
+                if save_best and (best_perf is None or perf >= best_perf):
+                    best_perf = perf
+                    best_params = {param: param.get_value() for param in params}
+            if save_best:
+                for param, value in best_params.items():
+                    param.set_value(value)
 
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)

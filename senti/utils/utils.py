@@ -1,11 +1,12 @@
 
 import itertools
 import logging
+import time
 from contextlib import contextmanager
 
 from wrapt import ObjectProxy
 
-__all__ = ['PicklableProxy', 'reiterable', 'compose', 'split_every', 'temp_log_level']
+__all__ = ['PicklableProxy', 'reiterable', 'compose', 'split_every', 'temp_log_level', 'log_time']
 
 
 class PicklableProxy(ObjectProxy):
@@ -93,3 +94,12 @@ def temp_log_level(loggers_levels):
     yield
     for logger, level in prev_levels.items():
         logging.getLogger(logger).setLevel(level)
+
+
+@contextmanager
+def log_time(fmt_start, fmt_end):
+    logging.info(fmt_start)
+    start = time.time()
+    yield
+    end = time.time()
+    logging.info(fmt_end.format(end - start))

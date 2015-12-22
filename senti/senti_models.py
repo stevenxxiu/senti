@@ -77,7 +77,7 @@ class SentiModels:
         ).x
         w = np.hstack([[1], w])
         w /= w.sum()
-        print('w: {}'.format(w))
+        logging.info('w: {}'.format(w))
         estimator = VotingClassifier(list(zip(names, classifiers)), voting='soft', weights=w)
         estimator.classes_ = label_encoder.classes_
         estimator.estimators_ = classifiers
