@@ -10,7 +10,7 @@ from senti.models.base.nn import *
 __all__ = ['RNNCharToWordEmbedding']
 
 
-class RNNCharToWordEmbedding(NNRegressionBase):
+class RNNCharToWordEmbedding(NNRegressorBase):
     def create_model(self, emb_X, lstm_params, output_size):
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.matrix('target')

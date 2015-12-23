@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from senti.rand import get_rng
 from senti.utils import log_time
 
-__all__ = ['geometric_learning_rates', 'NNClassifierBase', 'NNRegressionBase']
+__all__ = ['geometric_learning_rates', 'NNClassifierBase', 'NNRegressorBase']
 
 
 def geometric_learning_rates(init, ratio=None, repeat=None, n=0):
@@ -141,7 +141,7 @@ class NNClassifierBase(NNBase):
 
 
 # noinspection PyAbstractClass
-class NNRegressionBase(NNBase):
+class NNRegressorBase(NNBase):
     def __init__(self, batch_size, *args, **kwargs):
         self.predictions = None
         super().__init__(batch_size, *args, **kwargs)
