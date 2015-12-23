@@ -1,4 +1,5 @@
 
+import itertools
 import logging
 import re
 from types import SimpleNamespace
@@ -15,6 +16,7 @@ from sklearn.svm import LinearSVC
 
 from senti.features import *
 from senti.models import *
+from senti.models.base.nn import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
@@ -355,18 +357,23 @@ class SentiModels:
         # word
         emb_word = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
         # char
-        normalize = Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))
         alphabet = ' abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
         emb_char = self.fit_embedding_char('none', alphabet, 300)
         ft_char = Pipeline([
-            ('normalize', normalize),
+            ('normalize', Map(str.lower)),
             ('embeddings', emb_char),
         ])
         # model
         cf = RNNCharToWordEmbedding(
-            batch_size=128, emb_X=emb_char.X, lstm_param=300, output_size=emb_char.X.shape[1]
+            batch_size=128, emb_X=emb_char.X, lstm_params=(300, 300), output_size=emb_char.X.shape[1]
         )
-        cf.fit(ft_char.transform(emb_word.vocab), emb_word.syn0, epoch_size=10**4, max_epochs=300)
+        emb_word.vocab = list(itertools.islice(emb_word.vocab, 10**3))
+        emb_word.syn0 = emb_word.syn0[:10**3]
+        # sd = np.mean((emb_word.syn0 - np.mean(emb_word.syn0))**2)**0.5
+        cf.fit(
+            ft_char.transform(emb_word.vocab), emb_word.syn0, epoch_size=10**3, max_epochs=2*300,
+            update_params_iter=geometric_learning_rates(0.01, 0.5, 10)
+        )
         raise ValueError
 
     def fit_rnn_word(self):

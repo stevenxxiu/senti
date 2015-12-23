@@ -11,19 +11,21 @@ __all__ = ['RNNCharToWordEmbedding']
 
 
 class RNNCharToWordEmbedding(NNRegressionBase):
-    def create_model(self, emb_X, lstm_param, output_size):
+    def create_model(self, emb_X, lstm_params, output_size):
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.matrix('target')
         l = lasagne.layers.InputLayer((self.batch_size, None), self.inputs[0])
         l_mask = lasagne.layers.InputLayer((self.batch_size, None), self.inputs[1])
         l = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
-        l = lasagne.layers.LSTMLayer(l, lstm_param, nonlinearity=rectify, mask_input=l_mask)
+        l = lasagne.layers.LSTMLayer(l, lstm_params[0], grad_clipping=100, nonlinearity=tanh, mask_input=l_mask)
+        l = lasagne.layers.LSTMLayer(l, lstm_params[1], grad_clipping=100, nonlinearity=tanh, mask_input=l_mask)
         l = lasagne.layers.SliceLayer(l, -1, 1)
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=identity)
         self.predictions = lasagne.layers.get_output(l, deterministic=True)
         self.loss = T.mean(aggregate(squared_error(lasagne.layers.get_output(l), self.target)))
         params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
+        self.update_params = [T.scalar('learning_rate')]
+        self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=self.update_params[0])
         self.network = l
 
     def gen_batch(self, docs, y=None):
