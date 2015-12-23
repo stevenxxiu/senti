@@ -4,18 +4,18 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import NNBase
+from senti.models.base.nn import *
 from senti.utils.lasagne_ import *
 
 __all__ = ['CNNChar']
 
 
-class CNNChar(NNBase):
-    def create_model(self, embeddings, input_size, output_size, static_mode):
+class CNNChar(NNClassifierBase):
+    def create_model(self, emb_X, input_size, output_size, static_mode):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
-        l = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+        l = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
         if static_mode == 0:
             self.constraints[l.W] = lambda u, v: u
         l = lasagne.layers.DimshuffleLayer(l, (0, 2, 1))
@@ -40,4 +40,4 @@ class CNNChar(NNBase):
 
     def gen_batch(self, X, y=None):
         input_size = self.kwargs['input_size']
-        return np.vstack(np.pad(x[input_size-1::-1], (0, max(input_size - x.size, 0)), 'constant') for x in X), y
+        return np.vstack(np.pad(x[input_size - 1::-1], (0, max(input_size - x.size, 0)), 'constant') for x in X), y

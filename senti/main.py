@@ -49,30 +49,32 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
         # pipeline_name, pipeline = senti_models.fit_cnn_word()
-        pipeline_name, pipeline = senti_models.fit_cnn_char()
-        # pipeline_name, pipeline = senti_models.fit_rnn_word()
+        # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
+        pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
+        # pipeline_name, pipeline = senti_models.fit_rnn_word()
 
         # test_data = [('dev', dev_docs, dev_labels)]
         test_data = [('dev', dev_docs, dev_labels), ('test', test_docs, test_labels)]
 
         # predict & write results
+        classes_ = np.array([0, 1, 2])
         for name, docs, labels in test_data:
             os.makedirs('results/{}'.format(name), exist_ok=True)
             try:
                 probs = pipeline.predict_proba(docs)
             except AttributeError:
-                probs = LabelBinarizer().fit(pipeline.classes_).transform(pipeline.predict(docs))
+                probs = LabelBinarizer().fit(classes_).transform(pipeline.predict(docs))
             with open('{}/{}.json'.format(labelled_dir, name)) as sr, \
                     open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
                 for line, prob in zip(sr, probs):
                     results_sr.write(json.dumps({
-                        'id': json.loads(line)['id'], 'label': int(pipeline.classes_[np.argmax(prob)]),
-                        'probs': [(c.item(), prob.item()) for c, prob in zip(pipeline.classes_, prob)]
+                        'id': json.loads(line)['id'], 'label': int(classes_[np.argmax(prob)]),
+                        'probs': [(c.item(), prob.item()) for c, prob in zip(classes_, prob)]
                     }) + '\n')
             print('{} data: '.format(name))
             labels = np.fromiter(labels, dtype='int32')
-            write_score('results/{}/{}'.format(name, pipeline_name), labels, probs, pipeline.classes_, (0, 2))
+            write_score('results/{}/{}'.format(name, pipeline_name), labels, probs, classes_, (0, 2))
 
 if __name__ == '__main__':
     main()

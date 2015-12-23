@@ -4,25 +4,25 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import NNBase
+from senti.models.base.nn import *
 from senti.utils.lasagne_ import *
 
 __all__ = ['CNNWord']
 
 
-class CNNWord(NNBase):
-    def create_model(self, embeddings, input_size, conv_param, dense_params, output_size, static_mode, max_norm):
+class CNNWord(NNClassifierBase):
+    def create_model(self, emb_X, input_size, conv_param, dense_params, output_size, static_mode, max_norm):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')
         l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
         l_embeds = []
         if static_mode in (0, 2):
-            l_cur = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            l_cur = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
             self.constraints[l_cur.W] = lambda u, v: u
             l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
             l_embeds.append(l_cur)
         if static_mode in (1, 2):
-            l_cur = lasagne.layers.EmbeddingLayer(l, embeddings.X.shape[0], embeddings.X.shape[1], W=embeddings.X)
+            l_cur = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
             l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
             l_embeds.append(l_cur)
         l_convs = []

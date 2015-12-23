@@ -2,13 +2,13 @@
 import lasagne
 import theano.tensor as T
 
-from senti.models.base.nn import NNBase
+from senti.models.base.nn import *
 from senti.utils.lasagne_ import *
 
 __all__ = ['NNMultiView']
 
 
-class NNMultiView(NNBase):
+class NNMultiView(NNClassifierBase):
     def create_model(self, models, output_size):
         self.inputs = sum((model.inputs for model in models), [])
         self.target = T.ivector('target')

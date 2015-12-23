@@ -3,19 +3,15 @@ import json
 
 import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.utils.multiclass import unique_labels
+
+from senti.utils.sklearn_ import EmptyFitMixin
 
 __all__ = ['ExternalModel']
 
 
-class ExternalModel(BaseEstimator):
+class ExternalModel(BaseEstimator, EmptyFitMixin):
     def __init__(self, docs_to_path):
         self.docs_to_path = docs_to_path
-        self.classes_ = None
-
-    def fit(self, docs, y=None):
-        self.classes_ = unique_labels(y)
-        return self
 
     def predict_proba(self, docs):
         with open(self.docs_to_path[docs]) as sr:

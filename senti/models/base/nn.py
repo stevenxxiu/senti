@@ -8,12 +8,11 @@ import theano
 import theano.tensor as T
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.utils.multiclass import unique_labels
 
 from senti.rand import get_rng
 from senti.utils import log_time
 
-__all__ = ['geometric_learning_rates', 'NNBase']
+__all__ = ['geometric_learning_rates', 'NNClassifierBase', 'NNRegressionBase']
 
 
 def geometric_learning_rates(init, ratio=None, repeat=None, n=0):
@@ -57,9 +56,9 @@ class NNBase(BaseEstimator):
         self.batch_size = batch_size
         self.args = args
         self.kwargs = kwargs
-        self.classes_ = None
         self.network = None
-        self.inputs = self.target = self.loss = self.probs = None
+        self.inputs = self.train_outputs = self.test_outputs = []
+        self.target = self.loss = None
         self.updates, self.constraints = {}, {}
         self.update_params = []
         self.create_model(*args, **kwargs)
@@ -86,41 +85,79 @@ class NNBase(BaseEstimator):
             yield self.gen_batch(*zip(*cur_docs)) if y is not None else self.gen_batch(cur_docs)
 
     @staticmethod
-    def perf(epoch, train_res, dev_res, dev_y, average_classes):
-        train_loss, train_acc = np.mean(train_res, axis=0)
-        dev_acc = accuracy_score(dev_res, dev_y)
-        dev_f1 = np.mean(precision_recall_fscore_support(dev_res, dev_y)[2][average_classes])
-        logging.info('epoch {}, train loss {:.4f}, train acc {:.4f}, val acc {:.4f}, val f1 {:.4f}'.format(
-            epoch + 1, train_loss, train_acc, dev_acc, dev_f1
-        ))
-        return dev_f1
+    def perf(epoch, train_res, dev_res=None, dev_y=None, **kwargs):
+        raise NotImplementedError
 
     def fit(
-        self, docs, y, dev_X, dev_y, average_classes, epoch_size=None, max_epochs=None,
-        update_params_iter=itertools.repeat([]), save_best=True
+        self, docs, y, max_epochs, epoch_size=None, dev_docs=None, dev_y=None, update_params_iter=itertools.repeat([]),
+        save_best=True, **kwargs
     ):
-        self.classes_ = unique_labels(dev_y)
-        predictions = T.argmax(self.probs, axis=1)
-        acc = T.mean(T.eq(predictions, self.target))
-        train = theano.function(
-            [*self.inputs, self.target, *self.update_params], [self.loss, acc], updates=self.updates
-        )
-        test = theano.function(self.inputs, predictions)
+        has_dev = dev_docs is not None
+        train_inputs = [*self.inputs, self.target, *self.update_params]
+        train = theano.function(train_inputs, self.train_outputs, updates=self.updates)
+        test = theano.function(self.inputs, self.test_outputs)
         with log_time('training...', 'training took {:.0f}s'):
             params = lasagne.layers.get_all_params(self.network)
             best_perf, best_params = None, None
             epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
             for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
                 train_res = [train(*batch, *update_params) for batch in batches]
-                dev_res = np.hstack(test(*batch[:-1]) for batch in self.gen_batches(dev_X))[:len(dev_y)]
-                perf = self.perf(i, train_res, dev_res, dev_y, average_classes)
-                if save_best and (best_perf is None or perf >= best_perf):
+                dev_res = np.concatenate(
+                    [test(*batch[:-1]) for batch in self.gen_batches(dev_docs)], axis=0
+                )[:len(dev_y)] if has_dev else None
+                perf = self.perf(i, train_res, dev_res, dev_y, **kwargs)
+                if (has_dev and save_best) and (best_perf is None or perf >= best_perf):
                     best_perf = perf
                     best_params = {param: param.get_value() for param in params}
-            if save_best:
+            if has_dev and save_best:
                 for param, value in best_params.items():
                     param.set_value(value)
 
+
+# noinspection PyAbstractClass
+class NNClassifierBase(NNBase):
+    def __init__(self, batch_size, *args, **kwargs):
+        self.probs = None
+        super().__init__(batch_size, *args, **kwargs)
+        predictions = T.argmax(self.probs, axis=1)
+        acc = T.mean(T.eq(predictions, self.target))
+        self.train_outputs = [self.loss, acc]
+        self.test_outputs = predictions
+
+    @staticmethod
+    def perf(epoch, train_res, dev_res=None, dev_y=None, average_classes=None, **kwargs):
+        train_loss, train_acc = np.mean(train_res, axis=0)
+        log_res, res = 'epoch {}, train loss {:.4f}, train acc {:.4f}'.format(epoch + 1, train_loss, train_acc), None
+        if dev_res is not None:
+            dev_acc = accuracy_score(dev_res, dev_y)
+            res = dev_f1 = np.mean(precision_recall_fscore_support(dev_res, dev_y)[2][average_classes])
+            log_res += ', dev acc {:.4f}, dev f1 {:.4f}'.format(dev_acc, dev_f1)
+        logging.info(log_res)
+        return res
+
     def predict_proba(self, docs):
         predict = theano.function(self.inputs, self.probs)
+        return np.vstack(predict(*batch[:-1]) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
+
+
+# noinspection PyAbstractClass
+class NNRegressionBase(NNBase):
+    def __init__(self, batch_size, *args, **kwargs):
+        self.predictions = None
+        super().__init__(batch_size, *args, **kwargs)
+        self.train_outputs = [self.loss]
+        self.test_outputs = self.predictions
+
+    @staticmethod
+    def perf(epoch, train_res, dev_res=None, dev_y=None, **kwargs):
+        train_loss, = np.mean(train_res, axis=0)
+        log_res, res = 'epoch {}, train rmse {:.4f}'.format(epoch + 1, train_loss**0.5), None
+        if dev_res is not None:
+            res = dev_rmse = np.mean((dev_res - dev_y)**2)
+            log_res += ', dev rmse {:.4f}'.format(dev_rmse)
+        logging.info(log_res)
+        return res
+
+    def predict(self, docs):
+        predict = theano.function(self.inputs, self.predictions)
         return np.vstack(predict(*batch[:-1]) for batch in self.gen_batches(docs))[:sum(1 for _ in docs)]
