@@ -3,7 +3,6 @@ import itertools
 import os
 import pickle
 import shutil
-from contextlib import suppress
 
 from senti.utils.sklearn_ import is_fit_empty
 from senti.utils.utils import PicklableProxy, split_every
@@ -39,21 +38,19 @@ class CachedFitTransform(PicklableProxy):
             shutil.rmtree(output_dir)
         return func._cached_call(args, kwargs)
 
-    def _cached_fit(self, cls, key_params, X, X_hash, *args, **kwargs):
+    def _cached_fit(self, cls, params, X, X_hash, *args, **kwargs):
         self.__wrapped__.fit(X, *args, **kwargs)
         return self.__wrapped__
 
     def fit(self, X, *args, **kwargs):
         if is_fit_empty(self):
             return self
-        ignored = {}
-        key_params = self.__wrapped__.get_params(deep=True)
-        for param in self._self_ignored_params:
-            with suppress(KeyError):
-                ignored[param] = key_params.pop(param)
+        params = self.__wrapped__.get_params(deep=True)
+        for name in self._self_ignored_params:
+            params.pop(name)
         X_hash = getattr(X, 'joblib_hash', None) or getattr(X, '_self_joblib_hash', None)
         fit_func = self._self_cached_fit_hash if X_hash else self._self_cached_fit
-        res, res_hash, _ = self._cached_call(fit_func, type(self.__wrapped__), key_params, X, X_hash, *args, **kwargs)
+        res, res_hash, _ = self._cached_call(fit_func, type(self.__wrapped__), params, X, X_hash, *args, **kwargs)
         self.__wrapped__, self._self_fit_hash = res, res_hash
         return self
 
