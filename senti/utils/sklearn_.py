@@ -1,5 +1,7 @@
 
-__all__ = ['EmptyFitMixin', 'is_fit_empty']
+from contextlib import contextmanager
+
+__all__ = ['EmptyFitMixin', 'has_empty_fit', 'skip_empty_fit']
 
 
 class EmptyFitMixin:
@@ -7,9 +9,21 @@ class EmptyFitMixin:
         return self
 
 
-def is_fit_empty(estimator):
+def has_empty_fit(estimator):
     if isinstance(estimator, EmptyFitMixin):
         return True
-    if hasattr(estimator, 'steps') and all(isinstance(e, EmptyFitMixin) for _, e in estimator.steps):
+    if hasattr(estimator, 'steps') and all(has_empty_fit(e) for _, e in estimator.steps):
         return True
+    if hasattr(estimator, 'estimator'):
+        return has_empty_fit(estimator.estimator)
     return False
+
+
+@contextmanager
+def skip_empty_fit(func):
+    def decorated(self, *args, **kwargs):
+        if has_empty_fit(self):
+            return self
+        return func(self, *args, **kwargs)
+
+    return decorated

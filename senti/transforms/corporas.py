@@ -2,6 +2,7 @@
 from sklearn.base import BaseEstimator
 
 from senti.utils import reiterable
+from senti.utils.sklearn_ import skip_empty_fit
 
 __all__ = ['AsCorporas', 'MapCorporas', 'MergeSliceCorporas']
 
@@ -13,12 +14,13 @@ class AsCorporas(BaseEstimator):
     def get_params(self, deep=True):
         return self.estimator.get_params(deep)
 
+    @skip_empty_fit
     def fit(self, docs, y=None):
         self.estimator.fit([docs])
         return self
 
     def transform(self, docs):
-        return self.estimator.transform([docs])[0]
+        return next(iter(self.estimator.transform([docs])))
 
 
 class MapCorporas(BaseEstimator):
@@ -28,13 +30,15 @@ class MapCorporas(BaseEstimator):
     def get_params(self, deep=True):
         return self.estimator.get_params(deep)
 
+    @skip_empty_fit
     def fit(self, corporas, y=None):
         for corpora in corporas:
             self.estimator.fit(corpora, y)
         return self
 
+    @reiterable
     def transform(self, corporas):
-        return list(map(self.estimator.transform, corporas))
+        yield from map(self.estimator.transform, corporas)
 
 
 class MergeSliceCorporas(BaseEstimator):
@@ -59,17 +63,19 @@ class MergeSliceCorporas(BaseEstimator):
     def get_params(self, deep=True):
         return self.estimator.get_params(deep)
 
+    @skip_empty_fit
     def fit(self, corporas, y=None):
         self.estimator.fit(self._chain_docs(corporas), y)
         return self
 
+    @reiterable
     def transform(self, corporas):
         transformed = self.estimator.transform(None)
-        res = []
+        if not hasattr(transformed, '__index__'):
+            transformed = list(transformed)
         for corpora in corporas:
             try:
                 i = self._corporas.index(corpora)
             except IndexError:
                 raise ValueError('docs were not fitted')
-            res.append(transformed[self._corporas_start[i]:self._corporas_end[i]])
-        return res
+            yield transformed[self._corporas_start[i]:self._corporas_end[i]]

@@ -4,7 +4,7 @@ import os
 import pickle
 import shutil
 
-from senti.utils.sklearn_ import is_fit_empty
+from senti.utils.sklearn_ import skip_empty_fit
 from senti.utils.utils import PicklableProxy, split_every
 
 __all__ = ['CachedFitTransform', 'CachedIterable']
@@ -42,9 +42,8 @@ class CachedFitTransform(PicklableProxy):
         self.__wrapped__.fit(X, *args, **kwargs)
         return self.__wrapped__
 
+    @skip_empty_fit
     def fit(self, X, *args, **kwargs):
-        if is_fit_empty(self):
-            return self
         params = self.__wrapped__.get_params(deep=True)
         for name in self._self_ignored_params:
             params.pop(name)

@@ -9,14 +9,15 @@ __all__ = ['IntroduceTypos']
 
 
 class IntroduceTypos(BaseEstimator, EmptyFitMixin):
-    def __init__(self, alphabet):
+    def __init__(self, alphabet, p=0.3):
         self.alphabet = alphabet
+        self.p = p
 
     @reiterable
     def transform(self, docs):
         for doc in docs:
             res = ''
-            is_ = get_rng().choice(len(doc), min(len(doc), get_rng().geometric(0.5)), replace=False)
+            is_ = get_rng().choice(len(doc), min(len(doc), get_rng().geometric(self.p) - 1), replace=False)
             prev_i = -1
             for i in is_:
                 # delete, insert, substitute
