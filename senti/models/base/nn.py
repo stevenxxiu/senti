@@ -99,7 +99,10 @@ class NNBase(BaseEstimator):
         with log_time('training...', 'training took {:.0f}s'):
             params = lasagne.layers.get_all_params(self.network)
             best_perf, best_params = None, None
-            epoch_iter = EpochIterator(self.gen_batches, (docs, y), epoch_size//self.batch_size if epoch_size else None)
+            epoch_iter = EpochIterator(
+                self.gen_batches, (docs, y), (epoch_size + self.batch_size - 1)//self.batch_size
+                if epoch_size else None
+            )
             for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
                 train_res = [train(*batch, *update_params) for batch in batches]
                 dev_res = np.concatenate(
