@@ -403,10 +403,10 @@ class SentiModels:
             output_size=3
         )
         kw = dict(dev_docs=ft_word.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
-        # cf.fit(
-        #     ft_word.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
-        #     save_best=False, **kw
-        # )
+        cf.fit(
+            ft_word.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
+            save_best=False, **kw
+        )
         cf.fit(ft_word_typo.transform(self.train_docs), self.train_labels(), max_epochs=15, **kw)
         estimator = Pipeline([('features', ft_word), ('classifier', cf)])
         return 'rnn_char_cnn_word', estimator
