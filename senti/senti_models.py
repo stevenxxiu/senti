@@ -17,7 +17,6 @@ from senti.features import *
 from senti.models import *
 from senti.models.base.nn import *
 from senti.preprocess import *
-from senti.rand import get_rng
 from senti.transforms import *
 from senti.utils import CachedFitTransform, compose, temp_log_level
 from senti.utils.gensim_ import *
@@ -73,7 +72,7 @@ class SentiModels:
         w = basinhopping(
             lambda w_: -(dev_label_indexes == np.argmax((
                 all_probs_first + all_probs_rest * w_.reshape((len(w_), 1, 1))
-            ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
+            ).sum(axis=0), axis=1)).sum(), np.random.uniform(0, 1, len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)] * (len(classifiers) - 1))
         ).x
         w = np.hstack([[1], w])
@@ -242,7 +241,7 @@ class SentiModels:
             ('tokenize', MapCorporas(tokenize_)),
             # 0.25 is chosen so the unknown vectors have approximately the same variance as google pre-trained ones
             ('embeddings', MapCorporas(Embeddings(
-                embeddings_, rand=lambda shape: get_rng().uniform(-0.25, 0.25, shape).astype('float32'),
+                embeddings_, rand=lambda shape: np.random.uniform(-0.25, 0.25, shape).astype('float32'),
                 include_zero=True
             ))),
         ])
@@ -254,7 +253,7 @@ class SentiModels:
         if embedding_type == 'onehot':
             X = np.identity(len(alphabet), dtype='float32')
         else:
-            X = get_rng().uniform(-0.25, 0.25, (len(alphabet), d)).astype('float32')
+            X = np.random.uniform(-0.25, 0.25, (len(alphabet), d)).astype('float32')
         return Embeddings(SimpleNamespace(vocab=dict(zip(alphabet, range(len(alphabet)))), X=X), include_zero=True)
 
     def fit_cnn_word(self):

@@ -7,9 +7,9 @@ import sys
 from contextlib import ExitStack
 
 import numpy as np
+np.random.seed(1234)
 from sklearn.preprocessing import LabelBinarizer
 
-from senti.rand import set_rng
 from senti.score import *
 from senti.senti_models import *
 from senti.utils import BalancedSlice, FieldExtractor, RepeatSr
@@ -36,9 +36,6 @@ def main():
         test_sr = stack.enter_context(open('{}/test.json'.format(labelled_dir)))
         test_docs = FieldExtractor(test_sr, 'text')
         test_labels = FieldExtractor(test_sr, 'label')
-
-        # fix seed for reproducibility
-        set_rng(np.random.RandomState(1234))
 
         # train
         senti_models = SentiModels(

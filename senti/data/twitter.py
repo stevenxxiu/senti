@@ -7,8 +7,9 @@ import re
 from contextlib import ExitStack, closing
 from multiprocessing import Pool
 
+import numpy as np
+
 from senti.features import Emoticons
-from senti.rand import get_rng
 
 
 def unique(seq):
@@ -124,7 +125,7 @@ def split_cross_validate(names, in_dir, out_dir):
             cur_lines = list(sr)
             lines.extend(cur_lines)
             splits.append(len(cur_lines))
-    get_rng().shuffle(lines)
+    np.random.shuffle(lines)
     offset = 0
     os.makedirs(out_dir)
     for name, split in zip(names, splits):

@@ -7,8 +7,6 @@ import numpy as np
 from scipy.misc import logsumexp
 from sklearn.base import BaseEstimator
 
-from senti.rand import get_rng
-
 __all__ = ['Word2VecBayes']
 
 logger = logging.getLogger('senti.models.word2vec_bayes')
@@ -31,7 +29,7 @@ class Word2VecBayes(BaseEstimator):
             cur_docs = [doc for doc, c in zip(docs, y) if c == class_]
             for epoch in range(20):
                 logger.info('epoch {}'.format(epoch + 1))
-                get_rng().shuffle(cur_docs)
+                np.random.shuffle(cur_docs)
                 model.train(cur_docs)
                 model.alpha *= 0.9
                 model.min_alpha = model.alpha
