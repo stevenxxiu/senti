@@ -42,6 +42,7 @@ class CachedFitTransform(PicklableProxy):
         self.__wrapped__.fit(X, *args, **kwargs)
         return self.__wrapped__
 
+    # noinspection PyAttributeOutsideInit
     @skip_empty_fit
     def fit(self, X, *args, **kwargs):
         params = self.__wrapped__.get_params(deep=True)

@@ -55,8 +55,8 @@ class BalancedSlice:
 
     def __iter__(self):
         with reset_sr(*self.srs):
-            m = None if self.n is None else round(self.n/len(self.srs))
-            m_last = None if self.n is None else self.n - m*(len(self.srs) - 1)
+            m = None if self.n is None else round(self.n / len(self.srs))
+            m_last = None if self.n is None else self.n - m * (len(self.srs) - 1)
             for i, sr in enumerate(self.srs):
                 if m is None:
                     yield from sr

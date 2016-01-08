@@ -2,7 +2,6 @@
 
 import html
 import json
-import logging
 import os
 import re
 from contextlib import ExitStack, closing

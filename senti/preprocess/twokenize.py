@@ -189,8 +189,8 @@ edge_punct_chars = "'\"“”‘’«»{}\\(\\)\\[\\]\\*&"  # add \\p{So}? (symb
 edge_punct = "[" + edge_punct_chars + "]"
 not_edge_punct = "[a-zA-Z0-9]"  # content characters
 off_edge = r"(^|$|:|;|\s|\.|,)"  # colon here gets "(hello):" ==> "( hello ):"
-edge_punct_left = re.compile(off_edge + "("+edge_punct+"+)("+not_edge_punct+")", re.UNICODE)
-edge_punct_Right = re.compile("("+not_edge_punct+")("+edge_punct+"+)" + off_edge, re.UNICODE)
+edge_punct_left = re.compile(off_edge + "(" + edge_punct + "+)(" + not_edge_punct + ")", re.UNICODE)
+edge_punct_Right = re.compile("(" + not_edge_punct + ")(" + edge_punct + "+)" + off_edge, re.UNICODE)
 
 
 def split_edge_punct(input_):
@@ -236,7 +236,7 @@ def simple_tokenize(text):
     # Group the indices and map them to their respective portion of the string
     split_goods = []
     for i in range(0, len(indices), 2):
-        good_str = split_punct_text[indices[i]:indices[i+1]]
+        good_str = split_punct_text[indices[i]:indices[i + 1]]
         split_str = good_str.strip().split(" ")
         split_goods.append(split_str)
 

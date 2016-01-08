@@ -1,5 +1,4 @@
 
-import itertools
 import logging
 import re
 from types import SimpleNamespace
@@ -73,9 +72,9 @@ class SentiModels:
         # assume w_0=1 as w is invariant to scaling
         w = basinhopping(
             lambda w_: -(dev_label_indexes == np.argmax((
-                all_probs_first + all_probs_rest*w_.reshape((len(w_), 1, 1))
+                all_probs_first + all_probs_rest * w_.reshape((len(w_), 1, 1))
             ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
-            minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)]*(len(classifiers) - 1))
+            minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)] * (len(classifiers) - 1))
         ).x
         w = np.hstack([[1], w])
         w /= w.sum()
@@ -366,7 +365,7 @@ class SentiModels:
             batch_size=128, emb_X=emb_char.X, lstm_params=(300, 300), output_size=emb_char.X.shape[1]
         )
         cf_char.fit(
-            ft_char.transform(emb_word.vocab), emb_word.syn0, epoch_size=10**3, max_epochs=2*300,
+            ft_char.transform(emb_word.vocab), emb_word.syn0, epoch_size=10**3, max_epochs=2 * 300,
             update_params_iter=geometric_learning_rates(0.01, 0.5, 10)
         )
         return cf_char

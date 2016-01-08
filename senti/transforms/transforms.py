@@ -56,4 +56,4 @@ class Count(BaseEstimator, EmptyFitMixin):
 class Proportion(BaseEstimator, EmptyFitMixin):
     @staticmethod
     def transform(docs):
-        return vstack(sparse_sum(doc, axis=0)/doc.shape[0] for doc in docs)
+        return vstack(sparse_sum(doc, axis=0) / doc.shape[0] for doc in docs)

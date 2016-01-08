@@ -100,7 +100,7 @@ class NNBase(BaseEstimator):
             params = lasagne.layers.get_all_params(self.network)
             best_perf, best_params = None, None
             epoch_iter = EpochIterator(
-                self.gen_batches, (docs, y), (epoch_size + self.batch_size - 1)//self.batch_size
+                self.gen_batches, (docs, y), (epoch_size + self.batch_size - 1) // self.batch_size
                 if epoch_size else None
             )
             for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):

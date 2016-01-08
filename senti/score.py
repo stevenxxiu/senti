@@ -1,5 +1,6 @@
 
-import matplotlib; matplotlib.use('Agg')
+import matplotlib
+matplotlib.use('Agg')
 from contextlib import closing
 
 import matplotlib.pyplot as plt
