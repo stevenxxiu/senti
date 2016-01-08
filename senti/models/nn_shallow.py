@@ -3,22 +3,19 @@ import lasagne
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import *
 from senti.utils.lasagne_ import *
 
 __all__ = ['NNShallow']
 
 
-class NNShallow(NNClassifierBase):
+class NNShallow(NNBase):
     '''
     Trains the upper layers of an existing neural net.
     '''
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._features = lambda X_batch: None
-
-    def create_model(self, model, num_train):
+    def __init__(self, model, num_train):
+        super().__init__(model.batch_size)
+        self.model = model
         self.target = T.ivector('target')
         l = model.network
         for _ in range(num_train - 1):
@@ -30,11 +27,12 @@ class NNShallow(NNClassifierBase):
         l.input_layer = l_in
         l = model.network
         self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = T.mean(categorical_crossentropy_exp(lasagne.layers.get_output(l), self.target, self.batch_size))
+        self.loss = T.mean(categorical_crossentropy_exp(self.target, lasagne.layers.get_output(l)))
         params = lasagne.layers.get_all_params(l, trainable=True)
         self.updates = lasagne.updates.adadelta(self.loss, params)
+        self.metrics = model.metrics
         self.network = l
+        self.compile()
 
     def gen_batch(self, X, y=None):
-        model = self.kwargs['model']
-        return model.gen_batch(X, y)
+        return self.model.gen_batch(X, y)

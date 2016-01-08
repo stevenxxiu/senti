@@ -15,12 +15,12 @@ from sklearn.svm import LinearSVC
 
 from senti.features import *
 from senti.models import *
-from senti.models.base.nn import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
 from senti.utils import CachedFitTransform, compose, temp_log_level
 from senti.utils.gensim_ import *
+from senti.utils.lasagne_ import *
 
 __all__ = ['SentiModels']
 
@@ -271,9 +271,9 @@ class SentiModels:
         ])
         cf = CNNWord(
             batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
-            output_size=3, static_mode=1, norm_lim=3
+            output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
         )
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=10, **kw)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
@@ -302,9 +302,9 @@ class SentiModels:
             ('typos', IntroduceTypos(alphabet)),
             ('embeddings', emb),
         ])
-        cf = CNNChar(batch_size=128, emb_X=emb.X, input_size=140, output_size=3, static_mode=0)
+        cf = CNNChar(batch_size=128, emb_X=emb.X, input_size=140, output_size=3, static_mode=0, f1_classes=[0, 2])
         # cf = CachedFitTransform(cf, self.memory)
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         # cf = NNShallow(batch_size=128, model=classifier, num_train=5)
         cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=15, **kw)
@@ -342,11 +342,11 @@ class SentiModels:
         ft = Zip(ft_word, ft_char)
         ft_typo = Zip(ft_word, ft_char_typo)
         # model
-        cf = NNMultiView(batch_size=128, models=[CNNWord(
+        cf = NNMultiView(models_=[CNNWord(
             batch_size=128, emb_X=emb_word.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
-            output_size=3, static_mode=1, norm_lim=3
+            output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
         ), CNNChar(
-            batch_size=128, emb_X=emb_char.X, input_size=140, output_size=3
+            batch_size=128, emb_X=emb_char.X, input_size=140, output_size=3, static_mode=1, f1_classes=[0, 2]
         )], output_size=3)
         kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
@@ -401,9 +401,9 @@ class SentiModels:
         ])
         cf = RNNCharCNNWord(
             batch_size=64, emb_X=emb_char.X, num_words=56, lstm_params=[300], conv_param=(100, [3, 4, 5]),
-            output_size=3
+            output_size=3, f1_classes=[0, 2]
         )
-        kw = dict(dev_docs=ft_word.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        kw = dict(dev_docs=ft_word.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(
             ft_word.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
             save_best=False, **kw
@@ -423,8 +423,8 @@ class SentiModels:
             ('tokenize', tokenize_sense),
             ('embeddings', emb)
         ])
-        cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3)
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
+        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
         return 'rnn_word(embedding={})'.format(emb_type), estimator
