@@ -19,7 +19,6 @@ def has_empty_fit(estimator):
     return False
 
 
-@contextmanager
 def skip_empty_fit(func):
     def decorated(self, *args, **kwargs):
         if has_empty_fit(self):
