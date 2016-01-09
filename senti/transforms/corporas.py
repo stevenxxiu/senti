@@ -4,7 +4,7 @@ from sklearn.base import BaseEstimator
 from senti.utils import reiterable
 from senti.utils.sklearn_ import skip_empty_fit
 
-__all__ = ['ToCorporas', 'MapCorporas', 'MergeSliceCorporas']
+__all__ = ['ToCorporas', 'MapCorporas', 'MergeSliceCorporas', 'MultiInputOutput']
 
 
 class ToCorporas(BaseEstimator):
@@ -79,3 +79,23 @@ class MergeSliceCorporas(BaseEstimator):
             except IndexError:
                 raise ValueError('docs were not fitted')
             yield transformed[self._corporas_start[i]:self._corporas_end[i]]
+
+
+class MultiInputOutput(BaseEstimator):
+    def __init__(self, estimator, inputs, input_names, output_name):
+        self.estimator = estimator
+        self.inputs = inputs
+        self.input_names = input_names
+        self.output_name = output_name
+
+    @skip_empty_fit
+    def fit(self, data, *args, **kwargs):
+        for input_name in self.input_names:
+            kwargs[input_name] = {key: self.inputs[key].transform(value) for key, value in kwargs[input_name].items()}
+        self.estimator.fit({key: self.inputs[key].transform(value) for key, value in data.items()}, *args, **kwargs)
+        return self
+
+    def transform(self, data):
+        return self.estimator.transform(
+            {key: self.inputs[key].transform(value) for key, value in data.items()}
+        )[self.output_name]

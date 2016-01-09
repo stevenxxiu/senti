@@ -4,13 +4,12 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import *
-from senti.utils.lasagne_ import *
+from senti.utils.keras_ import *
 
 __all__ = ['CNNChar']
 
 
-class CNNChar(NNClassifierBase):
+class CNNChar(Graph):
     def create_model(self, emb_X, input_size, output_size, static_mode):
         self.inputs = [T.imatrix('input')]
         self.target = T.ivector('target')

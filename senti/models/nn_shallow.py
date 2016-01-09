@@ -3,13 +3,12 @@ import lasagne
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import *
-from senti.utils.lasagne_ import *
+from senti.utils.keras_ import *
 
 __all__ = ['NNShallow']
 
 
-class NNShallow(NNClassifierBase):
+class NNShallow(Graph):
     '''
     Trains the upper layers of an existing neural net.
     '''

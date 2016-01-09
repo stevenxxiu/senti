@@ -5,13 +5,12 @@ import theano.tensor as T
 from lasagne.nonlinearities import *
 from lasagne.objectives import *
 
-from senti.models.base.nn import *
-from senti.utils.lasagne_ import *
+from senti.utils.keras_ import *
 
 __all__ = ['RNNCharToWordEmbedding', 'RNNCharCNNWord']
 
 
-class RNNCharToWordEmbedding(NNRegressorBase):
+class RNNCharToWordEmbedding(Graph):
     def create_model(self, emb_X, lstm_params, output_size):
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.matrix('target')
@@ -39,7 +38,7 @@ class RNNCharToWordEmbedding(NNRegressorBase):
         return X, mask, y
 
 
-class RNNCharCNNWord(NNClassifierBase):
+class RNNCharCNNWord(Graph):
     def create_model(self, emb_X, num_words, lstm_params, conv_param, output_size):
         self.inputs = [T.itensor3('input'), T.tensor3('mask')]
         self.target = T.ivector('target')

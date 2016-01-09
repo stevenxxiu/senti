@@ -1,53 +1,60 @@
 
-import lasagne
 import numpy as np
-import theano.tensor as T
-from lasagne.nonlinearities import *
+from keras.constraints import *
+from keras.layers.convolutional import *
+from keras.layers.core import *
+from keras.layers.embeddings import *
 
-from senti.models.base.nn import *
-from senti.utils.lasagne_ import *
+from senti.utils.keras_ import *
 
 __all__ = ['CNNWord']
 
 
-class CNNWord(NNClassifierBase):
-    def create_model(self, emb_X, input_size, conv_param, dense_params, output_size, static_mode, max_norm):
-        self.inputs = [T.imatrix('input')]
-        self.target = T.ivector('target')
-        l = lasagne.layers.InputLayer((self.batch_size, input_size), self.inputs[0])
-        l_embeds = []
+class CNNWord(Graph):
+    def __init__(
+        self, batch_size, emb_X, input_size, conv_param, dense_params, output_size, static_mode, norm_lim, f1_classes
+    ):
+        super().__init__(batch_size)
+        self.input_size = input_size
+        self.add_input(name='docs', batch_input_shape=(self.batch_size, input_size), dtype='int')
+        embeds = []
         if static_mode in (0, 2):
-            l_cur = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
-            self.constraints[l_cur.W] = lambda u, v: u
-            l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
-            l_embeds.append(l_cur)
+            self.add_node(Embedding(
+                *emb_X.shape, input_length=input_size, weights=[emb_X], W_constraint=identity
+            ), input='docs')
+            embeds.append(self._prev_name)
         if static_mode in (1, 2):
-            l_cur = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
-            l_cur = lasagne.layers.DimshuffleLayer(l_cur, (0, 2, 1))
-            l_embeds.append(l_cur)
-        l_convs = []
-        for filter_size in conv_param[1]:
-            l_curs = [lasagne.layers.Conv1DLayer(
-                l_embed, conv_param[0], filter_size, pad='full', nonlinearity=rectify
-            ) for l_embed in l_embeds]
-            l_cur = lasagne.layers.ElemwiseSumLayer(l_curs)
-            l_cur = lasagne.layers.MaxPool1DLayer(l_cur, input_size + filter_size - 1, ignore_border=True)
-            l_cur = lasagne.layers.FlattenLayer(l_cur)
-            l_convs.append(l_cur)
-        l = lasagne.layers.ConcatLayer(l_convs)
-        l = lasagne.layers.DropoutLayer(l)
+            self.add_node(Embedding(*emb_X.shape, input_length=input_size, weights=[emb_X]), input='docs')
+            embeds.append(self._prev_name)
+        convs = []
+        for filter_length in conv_param[1]:
+            curs = []
+            for embed in embeds:
+                self.add_node(ZeroPadding1D(filter_length - 1), input=embed)
+                self.add_node(Convolution1D(conv_param[0], filter_length, activation='relu'))
+                curs.append(self._prev_name)
+            self.add_node(MaskedLayer(), inputs=curs, merge_mode='sum')
+            self.add_node(MaxPooling1D(input_size + filter_length - 1))
+            self.add_node(Flatten())
+            convs.append(self._prev_name)
+        self.add_node(MaskedLayer(), inputs=convs, merge_mode='concat')
+        self.add_node(Dropout(0.5))
         for dense_param in dense_params:
-            l = lasagne.layers.DenseLayer(l, dense_param, nonlinearity=rectify)
-            self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
-            l = lasagne.layers.DropoutLayer(l)
-        l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
-        self.constraints[l.W] = lambda u, v: lasagne.updates.norm_constraint(v, max_norm)
-        self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = T.mean(categorical_crossentropy_exp(lasagne.layers.get_output(l), self.target, self.batch_size))
-        params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params)
-        self.network = l
+            self.add_node(Dense(dense_param, activation='relu', W_constraint=maxnorm(norm_lim)))
+            self.add_node(Dropout(0.5))
+        self.add_node(Dense(output_size, activation=log_softmax, W_constraint=maxnorm(norm_lim)))
+        self.add_node(LambdaTest(lambda x: T.exp(x)))
+        self.add_output('output')
+        self.compile(
+            'adadelta', {'output': categorical_crossentropy_exp},
+            output_ndim={'output': 1}, output_dtype={'output': 'int'},
+            train_metrics={'output': ['acc']}, test_metrics={'output': ['acc']}
+        )
 
-    def gen_batch(self, X, y=None):
-        input_size = self.kwargs['input_size']
-        return np.vstack(np.pad(x[:input_size], (0, max(input_size - x.size, 0)), 'constant') for x in X), y
+    def _pre_transform(self, data):
+        return {
+            'docs': np.vstack(np.pad(
+                doc[:self.input_size], (0, max(self.input_size - doc.size, 0)), 'constant'
+            ) for doc in data['docs']),
+            'output': np.array(data['output']),
+        }

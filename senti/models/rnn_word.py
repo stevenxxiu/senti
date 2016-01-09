@@ -4,13 +4,12 @@ import numpy as np
 import theano.tensor as T
 from lasagne.nonlinearities import *
 
-from senti.models.base.nn import *
-from senti.utils.lasagne_ import *
+from senti.utils.keras_ import *
 
 __all__ = ['RNNWord']
 
 
-class RNNWord(NNClassifierBase):
+class RNNWord(Graph):
     def create_model(self, emb_X, lstm_param, output_size):
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.ivector('target')

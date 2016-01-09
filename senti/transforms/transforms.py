@@ -7,7 +7,13 @@ from senti.utils import reiterable
 from senti.utils.numpy_ import sparse_sum, vstack
 from senti.utils.sklearn_ import EmptyFitMixin
 
-__all__ = ['Map', 'MapTokens', 'Zip', 'Index', 'Count', 'Proportion']
+__all__ = ['Identity', 'Map', 'MapTokens', 'Zip', 'Index', 'Count', 'Proportion']
+
+
+class Identity(BaseEstimator, EmptyFitMixin):
+    @staticmethod
+    def transform(docs):
+        return docs
 
 
 class Map(BaseEstimator, EmptyFitMixin):
