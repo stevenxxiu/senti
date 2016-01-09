@@ -158,7 +158,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         features = FeatureUnion([
-            # ('w2v_doc', AsCorporas(Pipeline([
+            # ('w2v_doc', ToCorporas(Pipeline([
             #     ('tokenize', MapCorporas(tokenize_sense)),
             #     ('feature', MergeSliceCorporas(Doc2VecTransform(CachedFitTransform(Doc2Vec(
             #         dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
@@ -195,7 +195,7 @@ class SentiModels:
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecMax(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
             # ])),
-            # ('w2v_word_inv', AsCorporas(Pipeline([
+            # ('w2v_word_inv', ToCorporas(Pipeline([
             #     ('tokenize', MapCorporas(tokenize_sense)),
             #     ('feature', MergeSliceCorporas(Word2VecInverse(CachedFitTransform(Word2Vec(
             #         sg=1, size=100, window=10, hs=0, negative=5, sample=0, min_count=1, iter=20, workers=16

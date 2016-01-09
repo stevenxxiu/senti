@@ -4,10 +4,10 @@ from sklearn.base import BaseEstimator
 from senti.utils import reiterable
 from senti.utils.sklearn_ import skip_empty_fit
 
-__all__ = ['AsCorporas', 'MapCorporas', 'MergeSliceCorporas']
+__all__ = ['ToCorporas', 'MapCorporas', 'MergeSliceCorporas']
 
 
-class AsCorporas(BaseEstimator):
+class ToCorporas(BaseEstimator):
     def __init__(self, estimator):
         self.estimator = estimator
 
