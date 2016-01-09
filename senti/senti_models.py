@@ -264,7 +264,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         emb_type = 'google'
-        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense)
+        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense, d=100)
         ft = Pipeline([
             ('tokenize', tokenize_sense),
             ('embeddings', emb),
@@ -319,7 +319,9 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         emb_type = 'google'
-        emb_word = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense)
+        emb_word = self._fit_embedding_word(
+            emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense, d=100
+        )
         # char
         normalize = Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))
         alphabet = ' abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
@@ -416,7 +418,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         emb_type = 'google'
-        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense)
+        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense, d=100)
         ft = Pipeline([
             ('tokenize', tokenize_sense),
             ('embeddings', emb)
