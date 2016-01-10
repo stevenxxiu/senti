@@ -18,7 +18,7 @@ from senti.models import *
 from senti.preprocess import *
 from senti.rand import get_rng
 from senti.transforms import *
-from senti.utils import CachedFitTransform, compose, temp_log_level
+from senti.utils import *
 from senti.utils.gensim_ import *
 from senti.utils.lasagne_ import *
 
@@ -269,15 +269,19 @@ class SentiModels:
             ('tokenize', tokenize_sense),
             ('embeddings', emb),
         ])
-        cf = CNNWord(
+        # cf = CNNWord(
+        #     batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
+        #     output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
+        # )
+        cf = CNNWordPredInteraction(
             batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
-            output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
+            output_size=3, max_norm=3, f1_classes=[0, 2]
         )
         kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=10, **kw)
-        cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
+        cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=20, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
-        return 'cnn_word(embedding={})'.format(emb_type), estimator
+        return '{}(embedding={})'.format(snake_case(type(cf).__name__), emb_type), estimator
 
     def fit_cnn_char(self):
         distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]

@@ -1,12 +1,13 @@
 
 import itertools
 import logging
+import re
 import time
 from contextlib import contextmanager
 
 from wrapt import ObjectProxy
 
-__all__ = ['PicklableProxy', 'reiterable', 'compose', 'split_every', 'temp_log_level', 'log_time']
+__all__ = ['PicklableProxy', 'reiterable', 'compose', 'snake_case', 'split_every', 'temp_log_level', 'log_time']
 
 
 class PicklableProxy(ObjectProxy):
@@ -74,6 +75,11 @@ class Compose:
         return res
 
 compose = Compose
+
+
+def snake_case(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 def split_every(iter_, n):
