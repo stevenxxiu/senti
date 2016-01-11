@@ -1,6 +1,7 @@
 
-import lasagne
 import theano.tensor as T
+from lasagne.layers import *
+from lasagne.updates import *
 
 from senti.utils.lasagne_ import *
 
@@ -16,13 +17,13 @@ class NNMultiView(NNBase):
         l_features = []
         for model in models_:
             l_features.append(model.network.input_layer)
-        l = lasagne.layers.ConcatLayer(l_features)
-        l = lasagne.layers.DropoutLayer(l)
-        l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
-        self.pred = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = T.mean(categorical_crossentropy_exp(self.target, lasagne.layers.get_output(l)))
-        params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params)
+        l = ConcatLayer(l_features)
+        l = DropoutLayer(l)
+        l = DenseLayer(l, output_size, nonlinearity=log_softmax)
+        self.pred = T.exp(get_output(l, deterministic=True))
+        self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
+        params = get_all_params(l, trainable=True)
+        self.updates = adadelta(self.loss, params)
         self.metrics = models_[0].metrics
         self.network = l
         self.compile()

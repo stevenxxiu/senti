@@ -1,7 +1,8 @@
 
-import lasagne
 import theano.tensor as T
+from lasagne.layers import *
 from lasagne.nonlinearities import *
+from lasagne.updates import *
 
 from senti.utils.lasagne_ import *
 
@@ -20,16 +21,16 @@ class NNShallow(NNBase):
         l = model.network
         for _ in range(num_train - 1):
             l = l.input_layer
-        self._features = theano.function(model.inputs, lasagne.layers.get_output(l.input_layer, deterministic=True))
-        self.inputs = [lasagne.layers.get_output_shape(l.input_layer)]
-        l_in = lasagne.layers.InputLayer(self.inputs[0])
+        self._features = theano.function(model.inputs, get_output(l.input_layer, deterministic=True))
+        self.inputs = [get_output_shape(l.input_layer)]
+        l_in = InputLayer(self.inputs[0])
         l.input_shape = l_in.shape
         l.input_layer = l_in
         l = model.network
-        self.probs = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = T.mean(categorical_crossentropy_exp(self.target, lasagne.layers.get_output(l)))
-        params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.adadelta(self.loss, params)
+        self.probs = T.exp(get_output(l, deterministic=True))
+        self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
+        params = get_all_params(l, trainable=True)
+        self.updates = adadelta(self.loss, params)
         self.metrics = model.metrics
         self.network = l
         self.compile()

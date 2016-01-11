@@ -1,8 +1,9 @@
 
-import lasagne
 import numpy as np
 import theano.tensor as T
+from lasagne.layers import *
 from lasagne.nonlinearities import *
+from lasagne.updates import *
 
 from senti.utils.lasagne_ import *
 
@@ -14,15 +15,15 @@ class RNNWord(NNBase):
         super().__init__(batch_size)
         self.inputs = [T.imatrix('input'), T.matrix('mask')]
         self.target = T.ivector('target')
-        l = lasagne.layers.InputLayer((batch_size, None), self.inputs[0])
-        l_mask = lasagne.layers.InputLayer((batch_size, None), self.inputs[1])
-        l = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
-        l = lasagne.layers.LSTMLayer(l, lstm_param, nonlinearity=rectify, mask_input=l_mask, only_return_final=True)
-        l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=log_softmax)
-        self.pred = T.exp(lasagne.layers.get_output(l, deterministic=True))
-        self.loss = T.mean(categorical_crossentropy_exp(self.target, lasagne.layers.get_output(l)))
-        params = lasagne.layers.get_all_params(l, trainable=True)
-        self.updates = lasagne.updates.rmsprop(self.loss, params, learning_rate=0.01)
+        l = InputLayer((batch_size, None), self.inputs[0])
+        l_mask = InputLayer((batch_size, None), self.inputs[1])
+        l = EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
+        l = LSTMLayer(l, lstm_param, nonlinearity=rectify, mask_input=l_mask, only_return_final=True)
+        l = DenseLayer(l, output_size, nonlinearity=log_softmax)
+        self.pred = T.exp(get_output(l, deterministic=True))
+        self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
+        params = get_all_params(l, trainable=True)
+        self.updates = rmsprop(self.loss, params, learning_rate=0.01)
         self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()

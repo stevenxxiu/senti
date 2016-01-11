@@ -2,9 +2,9 @@
 import itertools
 import logging
 
-import lasagne
 import numpy as np
 import theano
+from lasagne.layers import get_all_params
 from sklearn.base import BaseEstimator
 
 from senti.rand import get_rng
@@ -107,7 +107,7 @@ class NNBase(BaseEstimator):
     ):
         has_dev = dev_docs is not None
         with log_time('training...', 'training took {:.0f}s'):
-            params = lasagne.layers.get_all_params(self.network)
+            params = get_all_params(self.network)
             best_perf, best_params = None, None
             epoch_iter = EpochIterator(
                 self.gen_batches, (docs, y), (epoch_size + self.batch_size - 1) // self.batch_size

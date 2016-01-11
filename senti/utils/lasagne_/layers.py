@@ -1,8 +1,8 @@
 
 import theano.tensor as T
-from lasagne import init
-from lasagne import nonlinearities
+from lasagne.init import *
 from lasagne.layers import Layer
+from lasagne.nonlinearities import *
 
 __all__ = ['KMaxPool1DLayer', 'SelfInteractionLayer']
 
@@ -26,10 +26,10 @@ class KMaxPool1DLayer(Layer):
 
 
 class SelfInteractionLayer(Layer):
-    def __init__(self, incoming, W=init.Uniform(), nonlinearity=nonlinearities.rectify, **kwargs):
+    def __init__(self, incoming, W=Uniform(), nonlinearity=rectify, **kwargs):
         super().__init__(incoming, **kwargs)
         self.W = self.add_param(W, (self.input_shape[1], self.input_shape[1], self.input_shape[1]), name='W')
-        self.nonlinearity = (nonlinearities.identity if nonlinearity is None else nonlinearity)
+        self.nonlinearity = (identity if nonlinearity is None else nonlinearity)
 
     def get_output_shape_for(self, input_shape):
         return input_shape
