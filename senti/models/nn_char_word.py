@@ -19,8 +19,9 @@ class RNNCharToWordEmbedding(NNBase):
         l_mask = lasagne.layers.InputLayer((batch_size, None), self.inputs[1])
         l = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
         for lstm_param in lstm_params:
-            l = lasagne.layers.LSTMLayer(l, lstm_param, grad_clipping=100, nonlinearity=tanh, mask_input=l_mask)
-        l = lasagne.layers.SliceLayer(l, -1, 1)
+            l = lasagne.layers.LSTMLayer(
+                l, lstm_param, grad_clipping=100, nonlinearity=tanh, mask_input=l_mask, only_return_final=True
+            )
         l = lasagne.layers.DenseLayer(l, output_size, nonlinearity=identity)
         self.pred = lasagne.layers.get_output(l, deterministic=True)
         self.loss = T.mean(aggregate(squared_error(lasagne.layers.get_output(l), self.target)))
@@ -53,8 +54,9 @@ class RNNCharCNNWord(NNBase):
         l_mask = lasagne.layers.ReshapeLayer(l_mask, (-1, [2]))
         l = lasagne.layers.EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
         for lstm_param in lstm_params:
-            l = lasagne.layers.LSTMLayer(l, lstm_param, grad_clipping=100, nonlinearity=tanh, mask_input=l_mask)
-        l = lasagne.layers.SliceLayer(l, -1, 1)
+            l = lasagne.layers.LSTMLayer(
+                l, lstm_param, grad_clipping=100, nonlinearity=tanh, mask_input=l_mask, only_return_final=True
+            )
         l = lasagne.layers.ReshapeLayer(l, (batch_size, num_words, -1))
         l_convs = []
         for filter_size in conv_param[1]:
