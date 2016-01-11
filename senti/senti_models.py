@@ -283,6 +283,25 @@ class SentiModels:
         estimator = Pipeline([('features', ft), ('classifier', cf)])
         return '{}(embedding={})'.format(snake_case(type(cf).__name__), emb_type), estimator
 
+    def fit_rnn_word(self):
+        distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
+        tokenize_sense = CachedFitTransform(Pipeline([
+            ('tokenize', Map(compose(tokenize, normalize_special))),
+            ('normalize', MapTokens(normalize_elongations)),
+        ]), self.memory)
+        emb_type = 'google'
+        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense, d=300)
+        ft = Pipeline([
+            ('tokenize', tokenize_sense),
+            ('embeddings', emb)
+        ])
+        cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
+        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
+        cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=10, **kw)
+        cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
+        estimator = Pipeline([('features', ft), ('classifier', cf)])
+        return 'rnn_word(embedding={})'.format(emb_type), estimator
+
     def fit_cnn_char(self):
         distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
         normalize = Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))
@@ -415,20 +434,3 @@ class SentiModels:
         cf.fit(ft_word_typo.transform(self.train_docs), self.train_labels(), max_epochs=15, **kw)
         estimator = Pipeline([('features', ft_word), ('classifier', cf)])
         return 'rnn_char_cnn_word', estimator
-
-    def fit_rnn_word(self):
-        tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose(tokenize, normalize_special))),
-            ('normalize', MapTokens(normalize_elongations)),
-        ]), self.memory)
-        emb_type = 'google'
-        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense, d=100)
-        ft = Pipeline([
-            ('tokenize', tokenize_sense),
-            ('embeddings', emb)
-        ])
-        cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
-        cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
-        estimator = Pipeline([('features', ft), ('classifier', cf)])
-        return 'rnn_word(embedding={})'.format(emb_type), estimator

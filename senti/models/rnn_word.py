@@ -1,6 +1,6 @@
 
-import numpy as np
 import theano.tensor as T
+from lasagne.init import *
 from lasagne.layers import *
 from lasagne.nonlinearities import *
 from lasagne.updates import *
@@ -18,7 +18,10 @@ class RNNWord(NNBase):
         l = InputLayer((batch_size, None), self.inputs[0])
         l_mask = InputLayer((batch_size, None), self.inputs[1])
         l = EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
-        l = LSTMLayer(l, lstm_param, nonlinearity=rectify, mask_input=l_mask, only_return_final=True)
+        l = LSTMLayer(
+            l, lstm_param, mask_input=l_mask, grad_clipping=100, nonlinearity=rectify,
+            only_return_final=True
+        )
         l = DenseLayer(l, output_size, nonlinearity=log_softmax)
         self.pred = T.exp(get_output(l, deterministic=True))
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
@@ -29,9 +32,9 @@ class RNNWord(NNBase):
         self.compile()
 
     def gen_batch(self, docs, y=None):
-        shape = (len(docs), max(map(len, docs)))
-        X = np.zeros(shape, dtype='int32')
-        mask = np.zeros(shape, dtype='bool')
+        shape_ = (len(docs), max(map(len, docs)))
+        X = np.zeros(shape_, dtype='int32')
+        mask = np.zeros(shape_, dtype='bool')
         for i, doc in enumerate(docs):
             X[i, :len(doc)] = doc
             mask[i, :len(doc)] = 1
