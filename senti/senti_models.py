@@ -294,7 +294,7 @@ class SentiModels:
         emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense, d=300)
         ft = Pipeline([
             ('tokenize', tokenize_sense),
-            ('embeddings', emb)
+            ('embeddings', emb),
         ])
         cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
         kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
