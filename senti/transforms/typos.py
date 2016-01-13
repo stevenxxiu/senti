@@ -16,12 +16,12 @@ class IntroduceTypos(BaseEstimator, EmptyFitMixin):
     @reiterable
     def transform(self, docs):
         for doc in docs:
-            res = ''
-            is_ = get_rng().choice(len(doc), min(len(doc), get_rng().geometric(self.p) - 1), replace=False)
+            res = '' if isinstance(doc, str) else []
+            is_ = sorted(get_rng().choice(len(doc), min(len(doc), get_rng().geometric(self.p) - 1), replace=False))
             prev_i = -1
             for i in is_:
                 # delete, insert, substitute
-                op = get_rng().choice(3)
+                op = get_rng().choice(3) if self.alphabet else 0
                 if op == 0:
                     res += doc[prev_i + 1:i]
                 elif op == 1:
