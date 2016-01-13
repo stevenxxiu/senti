@@ -58,9 +58,10 @@ class SentiModels:
             # 'svm(word_n_grams,char_n_grams,all_caps,hashtags,punctuations,punctuation_last,emoticons,emoticon_last,'
             # 'elongated,negation_count)',
             # 'logreg(w2v_doc)',
-            'logreg(w2v_word_avg_google)',
+            # 'logreg(w2v_word_avg_google)',
             'word2vec_bayes',
-            'cnn(embedding=google)',
+            'cnn_word(embedding=google)',
+            'rnn_word(embedding=google)',
         ]
         classifiers = [ExternalModel({
             self.dev_docs: 'results/dev/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
