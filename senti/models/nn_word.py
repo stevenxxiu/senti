@@ -105,7 +105,7 @@ class RNNWord(NNBase):
         l_mask = InputLayer((batch_size, None), self.inputs[1])
         l = EmbeddingLayer(l, emb_X.shape[0], emb_X.shape[1], W=emb_X)
         l = LSTMLayer(
-            l, lstm_param, mask_input=l_mask, grad_clipping=100, nonlinearity=rectify,
+            l, lstm_param, mask_input=l_mask, grad_clipping=100, nonlinearity=tanh,
             only_return_final=True
         )
         l = DenseLayer(l, output_size, nonlinearity=log_softmax)
