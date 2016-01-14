@@ -258,7 +258,7 @@ class SentiModels:
             X = get_rng().uniform(-0.25, 0.25, (len(alphabet), d)).astype('float32')
         return Embeddings(SimpleNamespace(vocab=dict(zip(alphabet, range(len(alphabet)))), X=X), include_zero=True)
 
-    def fit_cnn_word(self):
+    def fit_nn_word(self):
         distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
         tokenize_sense = CachedFitTransform(Pipeline([
             ('tokenize', Map(compose(tokenize, normalize_special))),
@@ -274,34 +274,16 @@ class SentiModels:
         #     batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
         #     output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
         # )
-        cf = CNNWordPredInteraction(
-            batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
-            output_size=3, max_norm=3, f1_classes=[0, 2]
-        )
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
-        cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=10, **kw)
-        cf.fit(ft.transform(self.train_docs), self.train_labels(), max_epochs=20, **kw)
-        estimator = Pipeline([('features', ft), ('classifier', cf)])
-        return '{}(embedding={})'.format(snake_case(type(cf).__name__), emb_type), estimator
-
-    def fit_rnn_word(self):
-        distant_docs, distant_labels = self.distant_docs[:10**5], self.distant_labels[:10**5]
-        tokenize_sense = CachedFitTransform(Pipeline([
-            ('tokenize', Map(compose(tokenize, normalize_special))),
-            ('normalize', MapTokens(normalize_elongations)),
-        ]), self.memory)
-        emb_type = 'google'
-        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs], tokenize_sense, d=300)
-        ft = Pipeline([
-            ('tokenize', tokenize_sense),
-            ('embeddings', emb),
-        ])
+        # cf = CNNWordPredInteraction(
+        #     batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
+        #     output_size=3, max_norm=3, f1_classes=[0, 2]
+        # )
         cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
         kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=10, **kw)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
-        return 'rnn_word(embedding={})'.format(emb_type), estimator
+        return '{}(embedding={})'.format(snake_case(type(cf).__name__), emb_type), estimator
 
     def fit_cnn_char(self):
         distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
@@ -335,7 +317,7 @@ class SentiModels:
         estimator = Pipeline([('features', ft), ('classifier', cf)])
         return 'cnn_char', estimator
 
-    def fit_cnn_word_char(self):
+    def fit_multiview_cnn_word_cnn_char(self):
         distant_docs, distant_labels = self.distant_docs[:10**6], self.distant_labels[:10**6]
         # word
         tokenize_sense = CachedFitTransform(Pipeline([
@@ -376,7 +358,7 @@ class SentiModels:
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
-        return 'cnn_word_char(embedding={})'.format(emb_type), estimator
+        return 'multiview_cnn_word_cnn_char(embedding={})'.format(emb_type), estimator
 
     def _fit_rnn_embedding(self):
         emb_word = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
