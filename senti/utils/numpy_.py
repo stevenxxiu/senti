@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 from scipy import sparse
 
-__all__ = ['sparse_sum', 'vstack']
+__all__ = ['sparse_sum', 'vstack', 'clippad']
 
 
 def sparse_sum(X, axis):
@@ -21,3 +21,12 @@ def vstack(Xs):
     X = next(Xs)
     Xs = itertools.chain([X], Xs)
     return sparse.vstack(Xs) if sparse.issparse(X) else np.vstack(Xs)
+
+
+def clippad(array, width, mode='constant', **kwargs):
+    n = len(array)
+    if n > width:
+        return array[:width]
+    elif n < width:
+        return np.pad(array, width - n, mode=mode, **kwargs)
+    return array

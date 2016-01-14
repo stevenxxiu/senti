@@ -6,6 +6,7 @@ from lasagne.nonlinearities import *
 from lasagne.updates import *
 
 from senti.utils.lasagne_ import *
+from senti.utils.numpy_ import *
 
 __all__ = ['CNNWord', 'CNNWordPredInteraction', 'RNNWord']
 
@@ -54,8 +55,8 @@ class CNNWord(NNBase):
         self.network = l
         self.compile()
 
-    def gen_batch(self, X, y=None):
-        return np.vstack(np.pad(x[:self.input_size], (0, max(self.input_size - x.size, 0)), 'constant') for x in X), y
+    def gen_batch(self, docs, y=None):
+        return np.vstack(clippad(doc, self.input_size) for doc in docs), y
 
 
 class CNNWordPredInteraction(NNBase):
@@ -92,8 +93,8 @@ class CNNWordPredInteraction(NNBase):
         self.network = l
         self.compile()
 
-    def gen_batch(self, X, y=None):
-        return np.vstack(np.pad(x[:self.input_size], (0, max(self.input_size - x.size, 0)), 'constant') for x in X), y
+    def gen_batch(self, docs, y=None):
+        return np.vstack(clippad(doc, self.input_size) for doc in docs), y
 
 
 class RNNWord(NNBase):

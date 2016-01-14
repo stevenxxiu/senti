@@ -6,6 +6,7 @@ from lasagne.nonlinearities import *
 from lasagne.updates import *
 
 from senti.utils.lasagne_ import *
+from senti.utils.numpy_ import *
 
 __all__ = ['CNNChar']
 
@@ -42,7 +43,5 @@ class CNNChar(NNBase):
         self.network = l
         self.compile()
 
-    def gen_batch(self, X, y=None):
-        return np.vstack(np.pad(
-            x[self.input_size - 1::-1], (0, max(self.input_size - x.size, 0)), 'constant'
-        ) for x in X), y
+    def gen_batch(self, docs, y=None):
+        return np.vstack(clippad(doc[::-1], self.input_size) for doc in docs), y
