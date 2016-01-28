@@ -5,8 +5,8 @@ __all__ = ['log_softmax', 'categorical_crossentropy_exp']
 
 
 def log_softmax(x):
-    xdev = x - x.max(1, keepdims=True)
-    return xdev - T.log(T.sum(T.exp(xdev), axis=1, keepdims=True))
+    x_diff = x - x.max(1, keepdims=True)
+    return x_diff - T.log(T.sum(T.exp(x_diff), axis=1, keepdims=True))
 
 
 def categorical_crossentropy_exp(y_true, y_pred):

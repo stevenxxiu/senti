@@ -25,14 +25,14 @@ def main():
         train_sr = stack.enter_context(open('{}/train.json'.format(labelled_dir)))
         train_docs = FieldExtractor(train_sr, 'text')
         train_labels = np.fromiter(FieldExtractor(train_sr, 'label'), 'int32')
-        distant_srs = [stack.enter_context(open('emote_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
+        distant_srs = [stack.enter_context(open('emote/class_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
         distant_docs = BalancedSlice(distant_srs)
         distant_labels = BalancedSlice((RepeatSr(0), RepeatSr(2)))
-        unsup_sr = stack.enter_context(open('unsup.txt', encoding='utf-8'))
+        unsup_sr = stack.enter_context(open('unsup/all.txt', encoding='utf-8'))
         unsup_docs = BalancedSlice([unsup_sr])
-        dev_sr = stack.enter_context(open('{}/dev.json'.format(labelled_dir)))
-        dev_docs = FieldExtractor(dev_sr, 'text')
-        dev_labels = FieldExtractor(dev_sr, 'label')
+        val_sr = stack.enter_context(open('{}/val.json'.format(labelled_dir)))
+        val_docs = FieldExtractor(val_sr, 'text')
+        val_labels = FieldExtractor(val_sr, 'label')
         test_sr = stack.enter_context(open('{}/test.json'.format(labelled_dir)))
         test_docs = FieldExtractor(test_sr, 'text')
         test_labels = FieldExtractor(test_sr, 'label')
@@ -42,7 +42,7 @@ def main():
 
         # train
         senti_models = SentiModels(
-            unsup_docs, distant_docs, distant_labels, train_docs, train_labels, dev_docs, dev_labels, test_docs
+            unsup_docs, distant_docs, distant_labels, train_docs, train_labels, val_docs, val_labels, test_docs
         )
         # pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
@@ -53,8 +53,8 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
 
-        # test_data = [('dev', dev_docs, dev_labels)]
-        test_data = [('dev', dev_docs, dev_labels), ('test', test_docs, test_labels)]
+        # test_data = [('val', val_docs, val_labels)]
+        test_data = [('val', val_docs, val_labels), ('test', test_docs, test_labels)]
 
         # predict & write results
         classes_ = np.array([0, 1, 2])

@@ -51,7 +51,7 @@ class CNNWord(NNBase):
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = adadelta(self.loss, params)
-        self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
+        self.metrics = {'train': [acc], 'val': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()
 
@@ -89,7 +89,7 @@ class CNNWordPredInteraction(NNBase):
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = adadelta(self.loss, params)
-        self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
+        self.metrics = {'train': [acc], 'val': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()
 
@@ -114,7 +114,7 @@ class RNNWord(NNBase):
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = rmsprop(self.loss, params, learning_rate=0.01)
-        self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
+        self.metrics = {'train': [acc], 'val': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()
 
@@ -150,7 +150,7 @@ class RNNMultiWord(NNBase):
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = adadelta(self.loss, params)
-        self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
+        self.metrics = {'train': [acc], 'val': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()
 

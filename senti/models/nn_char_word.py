@@ -29,7 +29,7 @@ class RNNCharToWordEmbedding(NNBase):
         params = get_all_params(l, trainable=True)
         self.update_params = [T.scalar('learning_rate')]
         self.updates = rmsprop(self.loss, params, learning_rate=self.update_params[0])
-        self.metrics = {'train': [rmse], 'dev': [rmse]}
+        self.metrics = {'train': [rmse], 'val': [rmse]}
         self.network = l
         self.compile()
 
@@ -73,7 +73,7 @@ class RNNCharCNNWord(NNBase):
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = adadelta(self.loss, params)
-        self.metrics = {'train': [acc], 'dev': [acc, f1(f1_classes)]}
+        self.metrics = {'train': [acc], 'val': [acc, f1(f1_classes)]}
         self.network = l
         self.compile()
 

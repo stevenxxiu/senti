@@ -41,15 +41,15 @@ class LazyLabels:
 
 class SentiModels:
     def __init__(
-        self, unsup_docs, distant_docs, distant_labels, train_docs, train_labels, dev_docs, dev_labels, test_docs
+        self, unsup_docs, distant_docs, distant_labels, train_docs, train_labels, val_docs, val_labels, test_docs
     ):
         self.unsup_docs = unsup_docs
         self.distant_docs = distant_docs
         self.distant_labels = LazyLabels(distant_labels)
         self.train_docs = train_docs
         self.train_labels = LazyLabels(train_labels)
-        self.dev_docs = dev_docs
-        self.dev_labels = LazyLabels(dev_labels)
+        self.val_docs = val_docs
+        self.val_labels = LazyLabels(val_labels)
         self.test_docs = test_docs
         self.memory = Memory(cachedir='cache', verbose=0)
 
@@ -64,15 +64,15 @@ class SentiModels:
             'rnn_word(embedding=google)',
         ]
         classifiers = [ExternalModel({
-            self.dev_docs: 'results/dev/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
+            self.val_docs: 'results/val/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
         }) for name in names]
-        all_probs = np.array([classifier.predict_proba(self.dev_docs) for classifier in classifiers])
+        all_probs = np.array([classifier.predict_proba(self.val_docs) for classifier in classifiers])
         all_probs_first, all_probs_rest = all_probs[0], all_probs[1:]
         label_encoder = LabelEncoder()
-        dev_label_indexes = label_encoder.fit_transform(self.dev_labels())
+        val_label_indexes = label_encoder.fit_transform(self.val_labels())
         # assume w_0=1 as w is invariant to scaling
         w = basinhopping(
-            lambda w_: -(dev_label_indexes == np.argmax((
+            lambda w_: -(val_label_indexes == np.argmax((
                 all_probs_first + all_probs_rest * w_.reshape((len(w_), 1, 1))
             ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)] * (len(classifiers) - 1))
@@ -165,7 +165,7 @@ class SentiModels:
             #         dm=0, dbow_words=1, size=100, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20,
             #         workers=16
             #     ), self.memory)))),
-            # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs]))),
+            # ]).fit([self.train_docs, self.unsup_docs[:10**6], self.val_docs, self.test_docs]))),
             # ('w2v_word_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
             #     ('feature', Word2VecAverage(CachedFitTransform(Word2Vec(
@@ -201,7 +201,7 @@ class SentiModels:
             #     ('feature', MergeSliceCorporas(Word2VecInverse(CachedFitTransform(Word2Vec(
             #         sg=1, size=100, window=10, hs=0, negative=5, sample=0, min_count=1, iter=20, workers=16
             #     ), self.memory)))),
-            # ]).fit([self.train_docs, self.unsup_docs[:10**5], self.dev_docs, self.test_docs]))),
+            # ]).fit([self.train_docs, self.unsup_docs[:10**5], self.val_docs, self.test_docs]))),
         ])
         classifier = LogisticRegression()
         with temp_log_level({'gensim.models.word2vec': logging.INFO}):
@@ -234,7 +234,7 @@ class SentiModels:
                 ('word2vec', MergeSliceCorporas(CachedFitTransform(Word2Vec(
                     sg=1, size=d, window=10, hs=0, negative=5, sample=1e-3, min_count=1, iter=20, workers=16
                 ), self.memory))),
-            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.dev_docs, self.test_docs])
+            ]).fit([self.train_docs, self.unsup_docs[:10**6], self.val_docs, self.test_docs])
             embeddings_ = estimator.named_steps['word2vec'].estimator
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         else:
@@ -265,7 +265,7 @@ class SentiModels:
             ('normalize', MapTokens(normalize_elongations)),
         ]), self.memory)
         emb_type = 'google'
-        emb = self._fit_embedding_word(emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense, d=100)
+        emb = self._fit_embedding_word(emb_type, [self.val_docs, self.train_docs, distant_docs], tokenize_sense, d=100)
         ft = Pipeline([
             ('tokenize', tokenize_sense),
             ('embeddings', emb),
@@ -282,7 +282,7 @@ class SentiModels:
         cf = RNNMultiWord(
             batch_size=64, input_size=56, emb_X=emb.X, conv_param=3, lstm_param=300, output_size=3, f1_classes=[0, 2]
         )
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
+        kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=20, **kw)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
@@ -313,7 +313,7 @@ class SentiModels:
         ])
         cf = CNNChar(batch_size=128, emb_X=emb.X, input_size=140, output_size=3, static_mode=0, f1_classes=[0, 2])
         # cf = CachedFitTransform(cf, self.memory)
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels())
+        kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         # cf = NNShallow(batch_size=128, model=classifier, num_train=5)
         cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=15, **kw)
@@ -329,7 +329,7 @@ class SentiModels:
         ]), self.memory)
         emb_type = 'google'
         emb_word = self._fit_embedding_word(
-            emb_type, [self.dev_docs, self.train_docs, distant_docs], tokenize_sense, d=100
+            emb_type, [self.val_docs, self.train_docs, distant_docs], tokenize_sense, d=100
         )
         # char
         normalize = Map(compose(str.lower, str.strip, lambda s: re.sub(r'\s+', ' ', s), normalize_special))
@@ -357,7 +357,7 @@ class SentiModels:
         ), CNNChar(
             batch_size=128, emb_X=emb_char.X, input_size=140, output_size=3, static_mode=1, f1_classes=[0, 2]
         )], output_size=3)
-        kw = dict(dev_docs=ft.transform(self.dev_docs), dev_y=self.dev_labels(), average_classes=[0, 2])
+        kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels(), average_classes=[0, 2])
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
@@ -412,7 +412,7 @@ class SentiModels:
             batch_size=64, emb_X=emb_char.X, num_words=56, lstm_params=[300], conv_param=(100, [3, 4, 5]),
             output_size=3, f1_classes=[0, 2]
         )
-        kw = dict(dev_docs=ft_word.transform(self.dev_docs), dev_y=self.dev_labels())
+        kw = dict(val_docs=ft_word.transform(self.val_docs), val_y=self.val_labels())
         cf.fit(
             ft_word.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100,
             save_best=False, **kw

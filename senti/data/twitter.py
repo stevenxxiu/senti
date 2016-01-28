@@ -38,7 +38,7 @@ class UnsupData:
     @staticmethod
     def unescape_unsup():
         with open('input/unsup/unsup.txt', encoding='utf-8') as in_sr, \
-                open('unsup.txt', 'w', encoding='utf-8') as out_sr:
+                open('unsup/all.txt', 'w', encoding='utf-8') as out_sr:
             for line in in_sr:
                 out_sr.write(html.unescape(html.unescape(line)))
 
@@ -49,7 +49,7 @@ class UnsupData:
     @classmethod
     def write_all_emote(cls):
         # all emoticons as cache stage, as emoticons extraction can be very slow
-        with open('unsup.txt', encoding='utf-8') as in_sr, open('emote.txt', 'w') as out_sr:
+        with open('unsup/all.txt', encoding='utf-8') as in_sr, open('emote/all.txt', 'w') as out_sr:
             with closing(Pool(64)) as pool:
                 for res, line in pool.imap(cls._emote_filter, in_sr, 100000):
                     if res:
@@ -58,8 +58,11 @@ class UnsupData:
     @classmethod
     def write_split_emote(cls):
         retweet_re = re.compile(r'RT\s*"?[@＠][a-zA-Z0-9_]+:?')
-        with open('emote.txt', encoding='utf-8') as in_sr, ExitStack() as stack:
-            out_srs = {i: stack.enter_context(open('emote_{}.txt'.format(i), 'w', encoding='utf-8')) for i in [0, 2]}
+        with open('emote/all.txt', encoding='utf-8') as in_sr, ExitStack() as stack:
+            out_srs = {
+                name: stack.enter_context(open('emote/class_{}.txt'.format(name), 'w', encoding='utf-8'))
+                for name in ['pos', 'neg']
+            }
             for i, line in enumerate(in_sr):
                 if retweet_re.search(line):
                     continue
@@ -116,7 +119,7 @@ class SemEvalData:
                 out_sr.write(json.dumps({'id': doc_id, 'text': text, 'label': cls.class_map[label]}) + '\n')
 
 
-def split_cross_validate(names, in_dir, out_dir):
+def shuffle_lines(names, in_dir, out_dir):
     lines = []
     splits = []
     for name in names:
@@ -139,7 +142,7 @@ def main():
     # UnsupData.write_all_emote()
     # UnsupData.write_split_emote()
     # for unitn_entry in [(
-    #     'semeval/dev.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
+    #     'semeval/val.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
     #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
     # ), (
     #     'semeval/train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
@@ -150,7 +153,7 @@ def main():
     #     'semeval/test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
     #     'input/test/SemEval2015-task10-test-B-gold.txt'
     # )
-    split_cross_validate(['train.json', 'dev.json', 'test.json'], 'semeval', 'semeval_random')
+    shuffle_lines(['train.json', 'val.json', 'test.json'], 'semeval', 'semeval_random')
 
 
 if __name__ == '__main__':

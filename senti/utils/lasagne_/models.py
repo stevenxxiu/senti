@@ -56,7 +56,7 @@ class NNBase(BaseEstimator):
         self.inputs = self.update_params = []
         self.target = self.pred = self.loss = None
         self.updates, self.constraints = {}, {}
-        self.metrics = {'train': [], 'dev': []}
+        self.metrics = {'train': [], 'val': []}
         self._train = self._test = None
 
     def compile(self):
@@ -88,24 +88,24 @@ class NNBase(BaseEstimator):
                 cur_docs.extend(docs[i] for i in get_rng().choice(len(docs), self.batch_size - len(cur_docs), False))
             yield self.gen_batch(*zip(*cur_docs)) if y is not None else self.gen_batch(cur_docs)
 
-    def perf(self, epoch, train_res, dev_y=None, dev_res=None):
+    def perf(self, epoch, train_res, val_y=None, val_res=None):
         loss, *metrics = np.mean(train_res, axis=0)
         logs = ['epoch {}'.format(epoch + 1), 'train loss {:.4f}'.format(loss)]
         for metric, value in zip(self.metrics['train'], metrics):
             logs.append('train {} {:.4f}'.format(metric.__name__, value))
         res = None
-        if dev_y is not None:
-            for metric in self.metrics['dev']:
-                res = metric(dev_y, dev_res)
-                logs.append('dev {} {:.4f}'.format(metric.__name__, res))
+        if val_y is not None:
+            for metric in self.metrics['val']:
+                res = metric(val_y, val_res)
+                logs.append('val {} {:.4f}'.format(metric.__name__, res))
         logging.info(', '.join(logs))
         return res
 
     def fit(
-        self, docs, y, max_epochs, epoch_size=None, dev_docs=None, dev_y=None, update_params_iter=itertools.repeat([]),
+        self, docs, y, max_epochs, epoch_size=None, val_docs=None, val_y=None, update_params_iter=itertools.repeat([]),
         save_best=True
     ):
-        has_dev = dev_docs is not None
+        has_val = val_docs is not None
         with log_time('training...', 'training took {:.0f}s'):
             params = get_all_params(self.network)
             best_perf, best_params = None, None
@@ -115,14 +115,14 @@ class NNBase(BaseEstimator):
             )
             for i, batches, update_params in zip(range(max_epochs), epoch_iter, update_params_iter):
                 train_res = [self._train(*batch, *update_params) for batch in batches]
-                dev_res = np.concatenate(
-                    [self._test(*batch[:-1]) for batch in self.gen_batches(dev_docs)], axis=0
-                )[:len(dev_y)] if has_dev else None
-                perf = self.perf(i, train_res, dev_y, dev_res)
-                if (has_dev and save_best) and (best_perf is None or perf >= best_perf):
+                val_res = np.concatenate(
+                    [self._test(*batch[:-1]) for batch in self.gen_batches(val_docs)], axis=0
+                )[:len(val_y)] if has_val else None
+                perf = self.perf(i, train_res, val_y, val_res)
+                if (has_val and save_best) and (best_perf is None or perf >= best_perf):
                     best_perf = perf
                     best_params = {param: param.get_value() for param in params}
-            if has_dev and save_best:
+            if has_val and save_best:
                 for param, value in best_params.items():
                     param.set_value(value)
 
