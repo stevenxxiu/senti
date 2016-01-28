@@ -141,14 +141,14 @@ def main():
     # UnsupData.unescape_unsup()
     # UnsupData.write_all_emote()
     # UnsupData.write_split_emote()
-    # for unitn_entry in [(
+    # SemEvalData.write_unitn(
     #     'semeval/val.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
     #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
-    # ), (
+    # )
+    # SemEvalData.write_unitn(
     #     'semeval/train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
     #     'input/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
-    # )]:
-    #     SemEvalData.write_unitn(*unitn_entry)
+    # )
     # SemEvalData.write_test(
     #     'semeval/test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
     #     'input/test/SemEval2015-task10-test-B-gold.txt'
