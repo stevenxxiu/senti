@@ -8,7 +8,7 @@ from contextlib import ExitStack, closing
 from multiprocessing import Pool
 
 from senti.features import Emoticons
-from senti.rand import get_rng
+from senti.rand import *
 
 
 def unique(seq):
@@ -138,6 +138,7 @@ def shuffle_lines(names, in_dir, out_dir):
 
 def main():
     os.chdir('data/twitter')
+    seed_rng(1234)
     # UnsupData.unescape_unsup()
     # UnsupData.write_all_emote()
     # UnsupData.write_split_emote()

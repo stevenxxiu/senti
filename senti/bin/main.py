@@ -9,7 +9,7 @@ from contextlib import ExitStack
 import numpy as np
 from sklearn.preprocessing import LabelBinarizer
 
-from senti.rand import set_rng
+from senti.rand import seed_rng
 from senti.score import *
 from senti.senti_models import *
 from senti.utils import BalancedSlice, FieldExtractor, RepeatSr
@@ -38,7 +38,7 @@ def main():
         test_labels = FieldExtractor(test_sr, 'label')
 
         # fix seed for reproducibility
-        set_rng(np.random.RandomState(1234))
+        seed_rng(1234)
 
         # train
         senti_models = SentiModels(

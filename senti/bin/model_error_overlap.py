@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import re
 import json
 import os
+import re
 from collections import OrderedDict
 
 import matplotlib.pyplot as plt

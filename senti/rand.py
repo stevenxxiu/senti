@@ -1,10 +1,10 @@
 
 import lasagne
-import numpy.random as random
+import numpy as np
 
-__all__ = ['get_rng', 'set_rng']
+__all__ = ['get_rng', 'seed_rng']
 
-_rng = random
+_rng = np.random
 
 
 def get_rng():
@@ -12,7 +12,7 @@ def get_rng():
     return _rng
 
 
-def set_rng(new_rng):
+def seed_rng(seed):
     global _rng
-    _rng = new_rng
+    _rng = np.random.RandomState(seed)
     lasagne.random.set_rng(_rng)
