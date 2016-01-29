@@ -80,7 +80,7 @@ class SentiModels:
         w = basinhopping(
             lambda w_: -(val_label_indexes == np.argmax((
                 all_scores_first + all_scores_rest * w_.reshape((len(w_), 1, 1))
-            ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
+            ).sum(axis=0), axis=1)).sum(), np.ones(len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)] * (len(classifiers) - 1))
         ).x
         w = np.hstack([[1], w])
