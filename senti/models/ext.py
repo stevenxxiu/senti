@@ -13,6 +13,13 @@ class ExternalModel(BaseEstimator, EmptyFitMixin):
     def __init__(self, docs_to_path):
         self.docs_to_path = docs_to_path
 
+    def predict(self, docs):
+        with open(self.docs_to_path[docs]) as sr:
+            res = []
+            for line in sr:
+                res.append(json.loads(line)['label'])
+            return res
+
     def predict_proba(self, docs):
         with open(self.docs_to_path[docs]) as sr:
             probs = []

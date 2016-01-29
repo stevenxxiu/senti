@@ -41,6 +41,7 @@ class LazyLabels:
 
 class SentiModels:
     def __init__(self, data):
+        self.classes_ = data.classes_
         self.unsup_docs = data.unsup_docs
         self.distant_docs = data.distant_docs
         self.distant_labels = LazyLabels(data.distant_labels)
@@ -52,6 +53,7 @@ class SentiModels:
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def fit_voting(self):
+        voting = 'soft'
         names = [
             # 'svm(word_n_grams,char_n_grams,all_caps,hashtags,punctuations,punctuation_last,emoticons,emoticon_last,'
             # 'elongated,negation_count)',
@@ -64,21 +66,28 @@ class SentiModels:
         classifiers = [ExternalModel({
             self.val_docs: 'results/val/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
         }) for name in names]
-        all_probs = np.array([classifier.predict_proba(self.val_docs) for classifier in classifiers])
-        all_probs_first, all_probs_rest = all_probs[0], all_probs[1:]
-        label_encoder = LabelEncoder()
-        val_label_indexes = label_encoder.fit_transform(self.val_labels())
+        all_scores = []
+        for classifier in classifiers:
+            scores = classifier.predict_proba(self.val_docs)
+            if voting == 'hard':
+                scores = Binarizer(1 / 3).transform(scores)
+            all_scores.append(scores)
+        all_scores = np.array(all_scores)
+        all_scores_first, all_scores_rest = all_scores[0], all_scores[1:]
+        le = LabelEncoder().fit(self.classes_)
+        val_label_indexes = le.transform(self.val_labels())
         # assume w_0=1 as w is invariant to scaling
         w = basinhopping(
             lambda w_: -(val_label_indexes == np.argmax((
-                all_probs_first + all_probs_rest * w_.reshape((len(w_), 1, 1))
+                all_scores_first + all_scores_rest * w_.reshape((len(w_), 1, 1))
             ).sum(axis=0), axis=1)).sum(), get_rng().uniform(0, 1, len(classifiers) - 1), niter=1000,
             minimizer_kwargs=dict(method='L-BFGS-B', bounds=[(0, None)] * (len(classifiers) - 1))
         ).x
         w = np.hstack([[1], w])
         w /= w.sum()
         logging.info('w: {}'.format(w))
-        estimator = VotingClassifier(list(zip(names, classifiers)), voting='soft', weights=w)
+        estimator = VotingClassifier(list(zip(names, classifiers)), voting=voting, weights=w)
+        estimator.le_ = le
         estimator.estimators_ = classifiers
         return 'vote({})'.format(','.join(names)), estimator
 

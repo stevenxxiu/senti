@@ -109,11 +109,11 @@ def main():
 
         # train
         senti_models = SentiModels(data)
-        # pipeline_name, pipeline = senti_models.fit_voting()
+        pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        pipeline_name, pipeline = senti_models.fit_nn_word()
+        # pipeline_name, pipeline = senti_models.fit_nn_word()
         # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
