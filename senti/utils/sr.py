@@ -4,7 +4,7 @@ import json
 import sys
 from contextlib import contextmanager
 
-__all__ = ['RepeatSr', 'Tee', 'FieldExtractor', 'BalancedSlice']
+__all__ = ['RepeatSr', 'Tee', 'JSONDecoder', 'FieldExtractor', 'BalancedSlice']
 
 
 @contextmanager
@@ -37,15 +37,24 @@ class Tee:
         self.file.close()
 
 
+class JSONDecoder:
+    def __init__(self, sr):
+        self.sr = sr
+
+    def __iter__(self):
+        with reset_sr(self.sr):
+            for line in self.sr:
+                yield json.loads(line)
+
+
 class FieldExtractor:
     def __init__(self, sr, field):
         self.sr = sr
         self.field = field
 
     def __iter__(self):
-        with reset_sr(self.sr):
-            for line in self.sr:
-                yield json.loads(line)[self.field]
+        for obj in self.sr:
+            yield obj[self.field]
 
 
 class BalancedSlice:

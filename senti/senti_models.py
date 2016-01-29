@@ -40,17 +40,15 @@ class LazyLabels:
 
 
 class SentiModels:
-    def __init__(
-        self, unsup_docs, distant_docs, distant_labels, train_docs, train_labels, val_docs, val_labels, test_docs
-    ):
-        self.unsup_docs = unsup_docs
-        self.distant_docs = distant_docs
-        self.distant_labels = LazyLabels(distant_labels)
-        self.train_docs = train_docs
-        self.train_labels = LazyLabels(train_labels)
-        self.val_docs = val_docs
-        self.val_labels = LazyLabels(val_labels)
-        self.test_docs = test_docs
+    def __init__(self, data):
+        self.unsup_docs = data.unsup_docs
+        self.distant_docs = data.distant_docs
+        self.distant_labels = LazyLabels(data.distant_labels)
+        self.train_docs = data.train_docs
+        self.train_labels = LazyLabels(data.train_labels)
+        self.val_docs = data.val_docs
+        self.val_labels = LazyLabels(data.val_labels)
+        self.test_docs = data.test_docs
         self.memory = Memory(cachedir='cache', verbose=0)
 
     def fit_voting(self):
