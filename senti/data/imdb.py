@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
+import itertools
 import json
 import os
-import itertools
 
 from senti.rand import *
 

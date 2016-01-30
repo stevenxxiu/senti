@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import os
 import itertools
+import os
 
 from senti.rand import *
 

@@ -1,13 +1,14 @@
 
 import itertools
 import logging
+import os
 import re
 import time
 from contextlib import contextmanager
 
 from wrapt import ObjectProxy
 
-__all__ = ['PicklableProxy', 'reiterable', 'compose', 'snake_case', 'split_every', 'temp_log_level', 'log_time']
+__all__ = ['PicklableProxy', 'reiterable', 'compose', 'snake_case', 'split_every', 'temp_chdir', 'temp_log_level', 'log_time']
 
 
 class PicklableProxy(ObjectProxy):
@@ -89,6 +90,14 @@ def split_every(iter_, n):
         if not res:
             break
         yield res
+
+
+@contextmanager
+def temp_chdir(path):
+    prev_dir = os.getcwd()
+    os.chdir(path)
+    yield
+    os.chdir(prev_dir)
 
 
 @contextmanager

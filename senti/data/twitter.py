@@ -82,13 +82,23 @@ class SemEvalData:
     class_map = {'negative': 0, 'neutral': 1, 'positive': 2}
 
     @classmethod
+    def write_download(cls, out_path, download_path):
+        with open(download_path) as download_sr, open(out_path, 'a+') as out_sr:
+            for line in download_sr:
+                doc_id, label, text = re.match(r'(?:\d+\t)?(\d+)\t(negative|neutral|positive)\t(.+)', line).groups()
+                text = html.unescape(html.unescape(text))
+                if text == 'Not Available':
+                    continue
+                out_sr.write(json.dumps({'id': doc_id, 'text': text, 'label': cls.class_map[label]}) + '\n')
+
+    @classmethod
     def write_unitn(cls, out_path, unitn_path, download_path, is_train):
-        with open(unitn_path) as unitn_sr, open(download_path) as download_sr, open(out_path, 'w') as out_sr:
+        with open(unitn_path) as unitn_sr, open(download_path) as download_sr, open(out_path, 'a+') as out_sr:
             for unitn_line, download_line in zip(unitn_sr, download_sr):
                 doc_id_unitn, label_unitn, text_unitn = \
                     re.match(r'\d+\t(\d+)\t(negative|neutral|positive)\t(.+)', unitn_line).groups()
                 doc_id_download, label_download, text_download = \
-                    re.match(r'\d+\t(\d+)\t(negative|neutral|positive)\t('r'.+)', download_line).groups()
+                    re.match(r'\d+\t(\d+)\t(negative|neutral|positive)\t(.+)', download_line).groups()
                 text_unitn = text_unitn.encode().decode('unicode-escape')
                 text_unitn = text_unitn.replace(r'’', '\'')
                 if is_train:
@@ -110,7 +120,7 @@ class SemEvalData:
 
     @classmethod
     def write_test(cls, out_path, download_path, test_path):
-        with open(download_path) as in_sr, open(test_path) as labels_sr, open(out_path, 'w') as out_sr:
+        with open(download_path) as in_sr, open(test_path) as labels_sr, open(out_path, 'a+') as out_sr:
             for line, label_line in zip(in_sr, labels_sr):
                 doc_id, text = re.match(r'NA\t(T\d+)\tunknwn\t(.+)', line).groups()
                 text = html.unescape(html.unescape(text))
@@ -139,22 +149,59 @@ def shuffle_lines(names, in_dir, out_dir):
 def main():
     os.chdir('data/twitter')
     seed_rng(1234)
+
+    # unsup
     # UnsupData.unescape_unsup()
     # UnsupData.write_all_emote()
     # UnsupData.write_split_emote()
+
+    # semeval 2015
+    # for file_name in os.listdir('semeval_2015'):
+    #     os.remove(file_name)
     # SemEvalData.write_unitn(
-    #     'semeval/val.json', 'input/unitn/dev/gold/twitter-dev-gold-B.tsv',
-    #     'input/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
+    #     'semeval_2015/train.json',
+    #     'input/semeval2015_task10_all/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+    #     'input/semeval2015_task10_all/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
     # )
     # SemEvalData.write_unitn(
-    #     'semeval/train.json', 'input/unitn/train/cleansed/twitter-train-cleansed-B.txt',
-    #     'input/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
+    #     'semeval_2015/val.json',
+    #     'input/semeval2015_task10_all/unitn/dev/gold/twitter-dev-gold-B.tsv',
+    #     'input/semeval2015_task10_all/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
     # )
     # SemEvalData.write_test(
-    #     'semeval/test.json', 'input/test/SemEval2015-task10-test-B-input.txt',
-    #     'input/test/SemEval2015-task10-test-B-gold.txt'
+    #     'semeval_2015/test.json',
+    #     'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-input.txt',
+    #     'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-gold.txt'
     # )
-    shuffle_lines(['train.json', 'val.json', 'test.json'], 'semeval', 'semeval_random')
+
+    # semeval 2015 random
+    # shuffle_lines(['train.json', 'val.json', 'test.json'], 'semeval_2015', 'semeval_2015_random')
+
+    # semeval 2016
+    for file_name in os.listdir('semeval_2016'):
+        os.remove(file_name)
+    SemEvalData.write_download(
+        'semeval_2016/train.json',
+        'input/semeval2016-task4.traindev/train/100_topics_100_tweets.sentence-three-point.subtask-A.train.out.txt',
+    )
+    SemEvalData.write_unitn(
+        'semeval_2016/train.json',
+        'input/semeval2015_task10_all/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+        'input/semeval2015_task10_all/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
+    )
+    SemEvalData.write_unitn(
+        'semeval_2016/train.json',
+        'input/semeval2015_task10_all/unitn/dev/gold/twitter-dev-gold-B.tsv',
+        'input/semeval2015_task10_all/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
+    )
+    SemEvalData.write_download(
+        'semeval_2016/val.json',
+        'input/semeval2016-task4.traindev/dev/100_topics_100_tweets.sentence-three-point.subtask-A.dev.out.txt',
+    )
+    SemEvalData.write_download(
+        'semeval_2016/test.json',
+        'input/semeval2016-task4.traindev/test/100_topics_100_tweets.sentence-three-point.subtask-A.test.out.txt',
+    )
 
 
 if __name__ == '__main__':

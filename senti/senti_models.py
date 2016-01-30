@@ -181,7 +181,7 @@ class SentiModels:
             # ]).fit(self.unsup_docs[:10**6])),
             # ('w2v_word_avg_google', Pipeline([
             #     ('tokenize', tokenize_sense),
-            #     ('feature', Word2VecAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+            #     ('feature', Word2VecAverage(joblib.load('data/google/GoogleNews-vectors-negative300.pickle'))),
             # ])),
             # ('w2v_word_norm_avg', Pipeline([
             #     ('tokenize', tokenize_sense),
@@ -191,7 +191,7 @@ class SentiModels:
             # ]).fit(self.unsup_docs[:10**6])),
             ('w2v_word_norm_avg_google', Pipeline([
                 ('tokenize', tokenize_sense),
-                ('feature', Word2VecNormAverage(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+                ('feature', Word2VecNormAverage(joblib.load('data/google/GoogleNews-vectors-negative300.pickle'))),
             ])),
             # ('w2v_word_max', Pipeline([
             #     ('tokenize', tokenize_sense),
@@ -201,7 +201,7 @@ class SentiModels:
             # ]).fit(self.unsup_docs[:10**6])),
             # ('w2v_word_max_google', Pipeline([
             #     ('tokenize', tokenize_sense),
-            #     ('feature', Word2VecMax(joblib.load('../google/GoogleNews-vectors-negative300.pickle'))),
+            #     ('feature', Word2VecMax(joblib.load('data/google/GoogleNews-vectors-negative300.pickle'))),
             # ])),
             # ('w2v_word_inv', ToCorporas(Pipeline([
             #     ('tokenize', MapCorporas(tokenize_sense)),
@@ -233,7 +233,7 @@ class SentiModels:
 
     def _fit_embedding_word(self, embedding_type, construct_docs, tokenize_, d=None):
         if embedding_type == 'google':
-            embeddings_ = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+            embeddings_ = joblib.load('data/google/GoogleNews-vectors-negative300.pickle')
             embeddings_ = SimpleNamespace(X=embeddings_.syn0, vocab={w: v.index for w, v in embeddings_.vocab.items()})
         elif embedding_type == 'twitter':
             estimator = Pipeline([
@@ -277,18 +277,18 @@ class SentiModels:
             ('tokenize', tokenize_sense),
             ('embeddings', emb),
         ])
-        # cf = CNNWord(
-        #     batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
-        #     output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
-        # )
+        cf = CNNWord(
+            batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
+            output_size=3, static_mode=1, max_norm=3, f1_classes=[0, 2]
+        )
         # cf = CNNWordPredInteraction(
         #     batch_size=64, emb_X=emb.X, input_size=56, conv_param=(100, [3, 4, 5]), dense_params=[],
         #     output_size=3, max_norm=3, f1_classes=[0, 2]
         # )
         # cf = RNNWord(batch_size=64, emb_X=emb.X, lstm_param=300, output_size=3, f1_classes=[0, 2])
-        cf = RNNMultiWord(
-            batch_size=64, input_size=56, emb_X=emb.X, conv_param=3, lstm_param=300, output_size=3, f1_classes=[0, 2]
-        )
+        # cf = RNNMultiWord(
+        #     batch_size=64, input_size=56, emb_X=emb.X, conv_param=3, lstm_param=300, output_size=3, f1_classes=[0, 2]
+        # )
         kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=20, **kw)
         cf.fit(ft.transform(self.train_docs), self.train_labels(), epoch_size=1000, max_epochs=100, **kw)
@@ -371,7 +371,7 @@ class SentiModels:
         return 'multiview_cnn_word_cnn_char(embedding={})'.format(emb_type), estimator
 
     def _fit_rnn_embedding(self):
-        emb_word = joblib.load('../google/GoogleNews-vectors-negative300.pickle')
+        emb_word = joblib.load('data/google/GoogleNews-vectors-negative300.pickle')
         alphabet = ' abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:\'"/\\|_@#$%^&*~`+-=<>()[]{}'
         emb_char = self._fit_embedding_char('none', alphabet, 300)
         ft_char = Pipeline([

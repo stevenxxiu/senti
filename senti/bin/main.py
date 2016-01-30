@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelBinarizer
 from senti.rand import seed_rng
 from senti.score import *
 from senti.senti_models import *
-from senti.utils import BalancedSlice, FieldExtractor, RepeatSr, JSONDecoder
+from senti.utils import BalancedSlice, FieldExtractor, JSONDecoder, RepeatSr, temp_chdir
 
 
 class SentiData:
@@ -37,22 +37,22 @@ class TwitterData(SentiData):
         self.classes_ = [0, 1, 2]
         self.average_classes = [0, 2]
         # data
-        os.chdir('data/twitter')
-        labelled_dir = 'semeval'
-        self.train_objs = JSONDecoder(stack.enter_context(open('{}/train.json'.format(labelled_dir))))
-        self.train_docs = FieldExtractor(self.train_objs, 'text')
-        self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'label'), 'int32')
-        distant_srs = [stack.enter_context(open('emote/class_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
-        self.distant_docs = BalancedSlice(distant_srs)
-        self.distant_labels = BalancedSlice((RepeatSr(0), RepeatSr(2)))
-        unsup_sr = stack.enter_context(open('unsup/all.txt', encoding='utf-8'))
-        self.unsup_docs = BalancedSlice([unsup_sr])
-        self.val_objs = JSONDecoder(stack.enter_context(open('{}/val.json'.format(labelled_dir))))
-        self.val_docs = FieldExtractor(self.val_objs, 'text')
-        self.val_labels = FieldExtractor(self.val_objs, 'label')
-        self.test_objs = JSONDecoder(stack.enter_context(open('{}/test.json'.format(labelled_dir))))
-        self.test_docs = FieldExtractor(self.test_objs, 'text')
-        self.test_labels = FieldExtractor(self.test_objs, 'label')
+        self.data_dir = 'data/twitter/semeval_2016'
+        with temp_chdir(self.data_dir):
+            self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
+            self.train_docs = FieldExtractor(self.train_objs, 'text')
+            self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'label'), 'int32')
+            distant_srs = [stack.enter_context(open('../emote/class_{}.txt'.format(i), encoding='utf-8')) for i in [0, 2]]
+            self.distant_docs = BalancedSlice(distant_srs)
+            self.distant_labels = BalancedSlice((RepeatSr(0), RepeatSr(2)))
+            unsup_sr = stack.enter_context(open('../unsup/all.txt', encoding='utf-8'))
+            self.unsup_docs = BalancedSlice([unsup_sr])
+            self.val_objs = JSONDecoder(stack.enter_context(open('val.json')))
+            self.val_docs = FieldExtractor(self.val_objs, 'text')
+            self.val_labels = FieldExtractor(self.val_objs, 'label')
+            self.test_objs = JSONDecoder(stack.enter_context(open('test.json')))
+            self.test_docs = FieldExtractor(self.test_objs, 'text')
+            self.test_labels = FieldExtractor(self.test_objs, 'label')
 
 
 class IMDBData(SentiData):
@@ -63,18 +63,19 @@ class IMDBData(SentiData):
         self.classes_ = [0, 1, 2]
         self.average_classes = [0, 2]
         # data
-        os.chdir('data/imdb')
-        self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
-        self.train_docs = FieldExtractor(self.train_objs, 'text')
-        self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'label'), 'int32')
-        unsup_sr = stack.enter_context(open('unsup.json'))
-        self.unsup_docs = BalancedSlice([FieldExtractor(unsup_sr, 'text')])
-        self.val_objs = JSONDecoder(stack.enter_context(open('val.json')))
-        self.val_docs = FieldExtractor(self.val_objs, 'text')
-        self.val_labels = FieldExtractor(self.val_objs, 'label')
-        self.test_objs = JSONDecoder(stack.enter_context(open('test.json')))
-        self.test_docs = FieldExtractor(self.test_objs, 'text')
-        self.test_labels = FieldExtractor(self.test_objs, 'label')
+        self.data_dir = 'data/imdb'
+        with temp_chdir(self.data_dir):
+            self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
+            self.train_docs = FieldExtractor(self.train_objs, 'text')
+            self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'label'), 'int32')
+            unsup_sr = stack.enter_context(open('unsup.json'))
+            self.unsup_docs = BalancedSlice([FieldExtractor(unsup_sr, 'text')])
+            self.val_objs = JSONDecoder(stack.enter_context(open('val.json')))
+            self.val_docs = FieldExtractor(self.val_objs, 'text')
+            self.val_labels = FieldExtractor(self.val_objs, 'label')
+            self.test_objs = JSONDecoder(stack.enter_context(open('test.json')))
+            self.test_docs = FieldExtractor(self.test_objs, 'text')
+            self.test_labels = FieldExtractor(self.test_objs, 'label')
 
 
 class YelpData(SentiData):
@@ -85,16 +86,17 @@ class YelpData(SentiData):
         self.classes_ = [1, 2, 3, 4, 5]
         self.average_classes = [1, 2, 3, 4, 5]
         # data
-        os.chdir('data/yelp')
-        self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
-        self.train_docs = FieldExtractor(self.train_objs, 'text')
-        self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'stars'), 'int32')
-        self.val_objs = JSONDecoder(stack.enter_context(open('val.json')))
-        self.val_docs = FieldExtractor(self.val_objs, 'text')
-        self.val_labels = FieldExtractor(self.val_objs, 'stars')
-        self.test_objs = JSONDecoder(stack.enter_context(open('test.json')))
-        self.test_docs = FieldExtractor(self.test_objs, 'text')
-        self.test_labels = FieldExtractor(self.test_objs, 'stars')
+        self.data_dir = 'data/yelp'
+        with temp_chdir(self.data_dir):
+            self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
+            self.train_docs = FieldExtractor(self.train_objs, 'text')
+            self.train_labels = np.fromiter(FieldExtractor(self.train_objs, 'stars'), 'int32')
+            self.val_objs = JSONDecoder(stack.enter_context(open('val.json')))
+            self.val_docs = FieldExtractor(self.val_objs, 'text')
+            self.val_labels = FieldExtractor(self.val_objs, 'stars')
+            self.test_objs = JSONDecoder(stack.enter_context(open('test.json')))
+            self.test_docs = FieldExtractor(self.test_objs, 'text')
+            self.test_labels = FieldExtractor(self.test_objs, 'stars')
 
 
 def main():
@@ -109,11 +111,11 @@ def main():
 
         # train
         senti_models = SentiModels(data)
-        pipeline_name, pipeline = senti_models.fit_voting()
+        # pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
         # pipeline_name, pipeline = senti_models.fit_svm()
-        # pipeline_name, pipeline = senti_models.fit_nn_word()
+        pipeline_name, pipeline = senti_models.fit_nn_word()
         # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
@@ -125,22 +127,23 @@ def main():
         ]
 
         # predict & write results
-        classes_ = np.array([0, 1, 2])
         for name, objs, docs, labels in test_data:
-            os.makedirs('results/{}'.format(name), exist_ok=True)
             try:
                 probs = pipeline.predict_proba(docs)
             except AttributeError:
-                probs = LabelBinarizer().fit(classes_).transform(pipeline.predict(docs))
-            with open('results/{}/{}.json'.format(name, pipeline_name), 'w') as results_sr:
-                for obj, prob in zip(objs, probs):
-                    results_sr.write(json.dumps({
-                        'id': obj['id'], 'label': int(classes_[np.argmax(prob)]),
-                        'probs': [(c.item(), prob.item()) for c, prob in zip(classes_, prob)]
-                    }) + '\n')
-            print('{} data: '.format(name))
-            labels = np.fromiter(labels, dtype='int32')
-            write_score('results/{}/{}'.format(name, pipeline_name), labels, probs, classes_, (0, 2))
+                probs = LabelBinarizer().fit(data.classes_).transform(pipeline.predict(docs))
+            results_dir = os.path.join(data.data_dir, 'results', name)
+            os.makedirs(results_dir, exist_ok=True)
+            with temp_chdir(results_dir):
+                with open('{}.json'.format(pipeline_name), 'w') as results_sr:
+                    for obj, prob in zip(objs, probs):
+                        results_sr.write(json.dumps({
+                            'id': obj['id'], 'label': data.classes_[np.argmax(prob)],
+                            'probs': [(c, prob.item()) for c, prob in zip(data.classes_, prob)]
+                        }) + '\n')
+                print('{} data: '.format(name))
+                labels = np.fromiter(labels, dtype='int32')
+                write_score('{}'.format(pipeline_name), labels, probs, data.classes_, data.average_classes)
 
 if __name__ == '__main__':
     main()

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import os
-import pandas as pd
 from collections import OrderedDict
+
+import pandas as pd
 
 
 def main():

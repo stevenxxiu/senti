@@ -15,6 +15,7 @@ __all__ = ['write_score']
 
 
 def write_score(name, gold_labels, pred_scores, classes, average_classes):
+    classes, average_classes = np.array(classes), np.array(average_classes)
     gold_scores = LabelBinarizer().fit(classes).transform(gold_labels)
     pred_labels = classes[np.argmax(pred_scores, axis=1)]
 

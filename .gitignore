@@ -1,5 +1,5 @@
-
-/.idea
-/data
-/third
+/.idea/
+/cache/
+/data/
+/third/
 __pycache__/
