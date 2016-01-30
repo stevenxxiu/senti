@@ -1,5 +1,6 @@
 
 import logging
+import os
 import re
 from types import SimpleNamespace
 
@@ -42,6 +43,7 @@ class LazyLabels:
 class SentiModels:
     def __init__(self, data):
         self.classes_ = data.classes_
+        self.data_dir = data.data_dir
         self.unsup_docs = data.unsup_docs
         self.distant_docs = data.distant_docs
         self.distant_labels = LazyLabels(data.distant_labels)
@@ -64,7 +66,8 @@ class SentiModels:
             'rnn_word(embedding=google)',
         ]
         classifiers = [ExternalModel({
-            self.val_docs: 'results/val/{}.json'.format(name), self.test_docs: 'results/test/{}.json'.format(name)
+            self.val_docs: os.path.join(self.data_dir, 'results/val/{}.json'.format(name)),
+            self.test_docs: os.path.join(self.data_dir, 'results/test/{}.json'.format(name)),
         }) for name in names]
         all_scores = []
         for classifier in classifiers:
