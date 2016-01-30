@@ -119,14 +119,25 @@ class SemEvalData:
                 out_sr.write(json.dumps({'id': doc_id_unitn, 'text': text, 'label': cls.class_map[label_unitn]}) + '\n')
 
     @classmethod
-    def write_test(cls, out_path, download_path, test_path):
-        with open(download_path) as in_sr, open(test_path) as labels_sr, open(out_path, 'a+') as out_sr:
+    def write_test_2015(cls, out_path, input_path, label_path):
+        with open(input_path) as in_sr, open(label_path) as labels_sr, open(out_path, 'a+') as out_sr:
             for line, label_line in zip(in_sr, labels_sr):
                 doc_id, text = re.match(r'NA\t(T\d+)\tunknwn\t(.+)', line).groups()
                 text = html.unescape(html.unescape(text))
                 doc_id_label, label = re.match(r'\d+\t(T\d+)\t(negative|neutral|positive)', label_line).groups()
                 assert doc_id == doc_id_label
                 out_sr.write(json.dumps({'id': doc_id, 'text': text, 'label': cls.class_map[label]}) + '\n')
+
+    @classmethod
+    def write_test_2016(cls, out_path, input_path):
+        with open(input_path) as in_sr, open(out_path, 'a+') as out_sr:
+            for line in in_sr:
+                doc_id, text = re.match(r'(\d+)\tUNKNOWN\t(.+)', line).groups()
+                # text = re.sub(r'\\(?!u)', r'\\\\', text)
+                text = re.sub(r'\\$', r'\\\\', text)
+                text = text.encode().decode('unicode-escape')
+                text = html.unescape(html.unescape(text))
+                out_sr.write(json.dumps({'id': doc_id, 'text': text}) + '\n')
 
 
 def shuffle_lines(names, in_dir, out_dir):
@@ -139,11 +150,17 @@ def shuffle_lines(names, in_dir, out_dir):
             splits.append(len(cur_lines))
     get_rng().shuffle(lines)
     offset = 0
-    os.makedirs(out_dir)
     for name, split in zip(names, splits):
         with open(os.path.join(out_dir, name), 'w') as sr:
             sr.writelines(lines[offset:offset + split])
             offset += split
+
+
+def create_data_dir(path):
+    os.makedirs(path, exist_ok=True)
+    for file_name in os.listdir(path):
+        if os.path.isfile(os.path.join(path, file_name)):
+            os.remove(os.path.join(path, file_name))
 
 
 def main():
@@ -156,30 +173,29 @@ def main():
     # UnsupData.write_split_emote()
 
     # semeval 2015
-    # for file_name in os.listdir('semeval_2015'):
-    #     os.remove(file_name)
-    # SemEvalData.write_unitn(
-    #     'semeval_2015/train.json',
-    #     'input/semeval2015_task10_all/unitn/train/cleansed/twitter-train-cleansed-B.txt',
-    #     'input/semeval2015_task10_all/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
-    # )
-    # SemEvalData.write_unitn(
-    #     'semeval_2015/val.json',
-    #     'input/semeval2015_task10_all/unitn/dev/gold/twitter-dev-gold-B.tsv',
-    #     'input/semeval2015_task10_all/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
-    # )
-    # SemEvalData.write_test(
-    #     'semeval_2015/test.json',
-    #     'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-input.txt',
-    #     'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-gold.txt'
-    # )
+    create_data_dir('semeval_2015')
+    SemEvalData.write_unitn(
+        'semeval_2015/train.json',
+        'input/semeval2015_task10_all/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+        'input/semeval2015_task10_all/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
+    )
+    SemEvalData.write_unitn(
+        'semeval_2015/val.json',
+        'input/semeval2015_task10_all/unitn/dev/gold/twitter-dev-gold-B.tsv',
+        'input/semeval2015_task10_all/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
+    )
+    SemEvalData.write_test_2015(
+        'semeval_2015/test.json',
+        'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-input.txt',
+        'input/semeval2015_task10_all/test/SemEval2015-task10-test-B-gold.txt',
+    )
 
     # semeval 2015 random
-    # shuffle_lines(['train.json', 'val.json', 'test.json'], 'semeval_2015', 'semeval_2015_random')
+    create_data_dir('semeval_2015_random')
+    shuffle_lines(['train.json', 'val.json', 'test.json'], 'semeval_2015', 'semeval_2015_random')
 
     # semeval 2016
-    for file_name in os.listdir('semeval_2016'):
-        os.remove(file_name)
+    create_data_dir('semeval_2016')
     SemEvalData.write_download(
         'semeval_2016/train.json',
         'input/semeval2016-task4.traindev/train/100_topics_100_tweets.sentence-three-point.subtask-A.train.out.txt',
@@ -201,6 +217,35 @@ def main():
     SemEvalData.write_download(
         'semeval_2016/test.json',
         'input/semeval2016-task4.traindev/test/100_topics_100_tweets.sentence-three-point.subtask-A.test.out.txt',
+    )
+
+    # semeval 2016 submit
+    create_data_dir('semeval_2016_submit')
+    SemEvalData.write_download(
+        'semeval_2016_submit/train.json',
+        'input/semeval2016-task4.traindev/train/100_topics_100_tweets.sentence-three-point.subtask-A.train.out.txt',
+    )
+    SemEvalData.write_unitn(
+        'semeval_2016_submit/train.json',
+        'input/semeval2015_task10_all/unitn/train/cleansed/twitter-train-cleansed-B.txt',
+        'input/semeval2015_task10_all/train/cleansed/twitter-train-cleansed-B-downloaded.tsv', True
+    )
+    SemEvalData.write_unitn(
+        'semeval_2016_submit/train.json',
+        'input/semeval2015_task10_all/unitn/dev/gold/twitter-dev-gold-B.tsv',
+        'input/semeval2015_task10_all/dev/gold/twitter-dev-gold-B-downloaded.tsv', False
+    )
+    SemEvalData.write_download(
+        'semeval_2016_submit/train.json',
+        'input/semeval2016-task4.traindev/test/100_topics_100_tweets.sentence-three-point.subtask-A.test.out.txt',
+    )
+    SemEvalData.write_download(
+        'semeval_2016_submit/val.json',
+        'input/semeval2016-task4.traindev/dev/100_topics_100_tweets.sentence-three-point.subtask-A.dev.out.txt',
+    )
+    SemEvalData.write_test_2016(
+        'semeval_2016_submit/test.json',
+        'input/semeval2016_task4_test_datasets/SemEval2016-task4-test.subtask-A.txt',
     )
 
 
