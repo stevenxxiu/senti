@@ -11,8 +11,6 @@ from senti.rand import get_rng
 
 __all__ = ['Word2VecBayes']
 
-logger = logging.getLogger('senti.models.word2vec_bayes')
-
 
 class Word2VecBayes(BaseEstimator):
     def __init__(self, model, class_priors=True):
@@ -24,13 +22,13 @@ class Word2VecBayes(BaseEstimator):
     def fit(self, docs, y):
         self.joint_model.build_vocab(docs)
         freqs = Counter(y)
-        classes = sorted(y.keys())
+        classes = sorted(freqs.keys())
         self.class_scores = np.log([freqs[c] for c in classes])
         self.models = [deepcopy(self.joint_model) for _ in classes]
         for class_, model in zip(classes, self.models):
             cur_docs = [doc for doc, c in zip(docs, y) if c == class_]
             for epoch in range(20):
-                logger.info('epoch {}'.format(epoch + 1))
+                logging.info('epoch {}'.format(epoch + 1))
                 get_rng().shuffle(cur_docs)
                 model.train(cur_docs)
                 model.alpha *= 0.9
