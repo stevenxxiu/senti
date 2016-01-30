@@ -28,5 +28,5 @@ def clippad(array, width, mode='constant', **kwargs):
     if n > width:
         return array[:width]
     elif n < width:
-        return np.pad(array, width - n, mode=mode, **kwargs)
+        return np.pad(array, (0, width - n), mode=mode, **kwargs)
     return array
