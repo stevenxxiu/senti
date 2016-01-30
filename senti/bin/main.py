@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 
 import numpy as np
 from sklearn.preprocessing import LabelBinarizer
@@ -37,7 +37,7 @@ class TwitterData(SentiData):
         self.classes_ = [0, 1, 2]
         self.average_classes = [0, 2]
         # data
-        self.data_dir = 'data/twitter/semeval_2016'
+        self.data_dir = 'data/twitter/semeval_2016_submit'
         with temp_chdir(self.data_dir):
             self.train_objs = JSONDecoder(stack.enter_context(open('train.json')))
             self.train_docs = FieldExtractor(self.train_objs, 'text')
@@ -114,8 +114,8 @@ def main():
         # pipeline_name, pipeline = senti_models.fit_voting()
         # pipeline_name, pipeline = senti_models.fit_logreg()
         # pipeline_name, pipeline = senti_models.fit_word2vec_bayes()
-        # pipeline_name, pipeline = senti_models.fit_svm()
-        pipeline_name, pipeline = senti_models.fit_nn_word()
+        pipeline_name, pipeline = senti_models.fit_svm()
+        # pipeline_name, pipeline = senti_models.fit_nn_word()
         # pipeline_name, pipeline = senti_models.fit_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
@@ -141,9 +141,10 @@ def main():
                             'id': obj['id'], 'label': data.classes_[np.argmax(prob)],
                             'probs': [(c, prob.item()) for c, prob in zip(data.classes_, prob)]
                         }) + '\n')
-                print('{} data: '.format(name))
-                labels = np.fromiter(labels, dtype='int32')
-                write_score('{}'.format(pipeline_name), labels, probs, data.classes_, data.average_classes)
+                with suppress(KeyError):
+                    labels = np.fromiter(labels, dtype='int32')
+                    print('{} data: '.format(name))
+                    write_score('{}'.format(pipeline_name), labels, probs, data.classes_, data.average_classes)
 
 if __name__ == '__main__':
     main()
