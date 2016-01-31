@@ -117,7 +117,7 @@ def main():
         pipeline_name, pipeline = senti_models.fit_svm()
         # pipeline_name, pipeline = senti_models.fit_nn_word()
         # pipeline_name, pipeline = senti_models.fit_cnn_char()
-        # pipeline_name, pipeline = senti_models.fit_cnn_word_char()
+        # pipeline_name, pipeline = senti_models.fit_multiview_cnn_word_cnn_char()
         # pipeline_name, pipeline = senti_models.fit_rnn_char_cnn_word()
 
         # test_data = [('val', data.val_objs, data.val_docs, data.val_labels)]
