@@ -35,7 +35,7 @@ class CNNChar(NNBase):
                 self.constraints[l.W] = lambda u, v: norm_constraint(v, max_norm)
             l = DropoutLayer(l)
         l = DenseLayer(l, output_size, nonlinearity=log_softmax)
-        self.probs = T.exp(get_output(l, deterministic=True))
+        self.pred = T.exp(get_output(l, deterministic=True))
         self.loss = T.mean(categorical_crossentropy_exp(self.target, get_output(l)))
         params = get_all_params(l, trainable=True)
         self.updates = adadelta(self.loss, params)
