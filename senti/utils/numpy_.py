@@ -10,9 +10,13 @@ __all__ = ['sparse_sum', 'vstack', 'clippad']
 def sparse_sum(X, axis):
     if axis == 0:
         n = X.shape[0]
+        if n == 0:
+            return sparse.csr_matrix((1, X.shape[1]))
         return sparse.csr_matrix((np.ones(n), np.arange(n), (0, n))) * X
     elif axis == 1:
         n = X.shape[1]
+        if n == 0:
+            return sparse.csr_matrix((X.shape[1], 1))
         return X * sparse.csr_matrix((np.ones(n), np.arange(n), (0, n)))
 
 
