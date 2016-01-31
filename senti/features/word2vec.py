@@ -38,7 +38,7 @@ class Word2VecNormAverage(Word2VecBase):
         for doc in docs:
             try:
                 words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
-                vecs.append(normalize(np.mean(normalize(words_matrix), axis=0)))
+                vecs.append(normalize(np.mean(normalize(words_matrix), axis=0).reshape(1, -1)).ravel())
             except ValueError:
                 vecs.append(np.zeros(self.model.vector_size))
         return np.vstack(vecs)
