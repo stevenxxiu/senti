@@ -367,7 +367,7 @@ class SentiModels:
         ), CNNChar(
             batch_size=128, emb_X=emb_char.X, input_size=140, output_size=3, static_mode=1, f1_classes=[0, 2]
         )], output_size=3)
-        kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels(), average_classes=[0, 2])
+        kw = dict(val_docs=ft.transform(self.val_docs), val_y=self.val_labels())
         cf.fit(ft.transform(distant_docs), distant_labels(), epoch_size=10**4, max_epochs=100, **kw)
         cf.fit(ft_typo.transform(self.train_docs), self.train_labels(), max_epochs=10, **kw)
         estimator = Pipeline([('features', ft), ('classifier', cf)])
