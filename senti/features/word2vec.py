@@ -24,8 +24,11 @@ class Word2VecAverage(Word2VecBase):
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
-            vecs.append(np.mean(words_matrix, axis=0))
+            try:
+                words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
+                vecs.append(np.mean(words_matrix, axis=0))
+            except ValueError:
+                vecs.append(np.zeros(self.model.vector_size))
         return np.vstack(vecs)
 
 
@@ -33,8 +36,11 @@ class Word2VecNormAverage(Word2VecBase):
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
-            vecs.append(normalize(np.mean(normalize(words_matrix), axis=0)))
+            try:
+                words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
+                vecs.append(normalize(np.mean(normalize(words_matrix), axis=0)))
+            except ValueError:
+                vecs.append(np.zeros(self.model.vector_size))
         return np.vstack(vecs)
 
 
@@ -42,9 +48,12 @@ class Word2VecMax(Word2VecBase):
     def transform(self, docs):
         vecs = []
         for doc in docs:
-            words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
-            arg_maxes = np.abs(words_matrix).argmax(0)
-            vecs.append(words_matrix[arg_maxes, np.arange(len(arg_maxes))])
+            try:
+                words_matrix = np.vstack(self.model[word] for word in doc if word in self.model.vocab)
+                arg_maxes = np.abs(words_matrix).argmax(0)
+                vecs.append(words_matrix[arg_maxes, np.arange(len(arg_maxes))])
+            except ValueError:
+                vecs.append(np.zeros(self.model.vector_size))
         return np.vstack(vecs)
 
 
